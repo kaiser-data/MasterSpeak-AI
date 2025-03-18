@@ -6,8 +6,8 @@ from fastapi_users.manager import BaseUserManager
 from fastapi_users.models import BaseUserDB
 from fastapi_users.password import PasswordHelper
 from sqlalchemy.orm import sessionmaker
-from .models import User  # Replace with your actual User model
-from .database import engine
+from models import User  # Replace with your actual User model
+from database import engine
 
 # Configure logging
 import logging
