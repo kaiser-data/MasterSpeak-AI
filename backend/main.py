@@ -1,8 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlmodel import SQLModel
+from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
-from database import init_db, engine  # Assuming `engine` is defined in `database.py`
-from routes import router as speech_router
+from backend.database.database import init_db  # Assuming `engine` is defined in `database.py`
+from backend.routes.routes import router as speech_router
 import logging
 
 # Configure logging

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
-from backend.database import get_session
-from backend.models import Speech, SpeechAnalysis
+from backend.database.database import get_session
+from backend.database.database import Speech, SpeechAnalysis
 from backend.crud import create_speech, get_speech_by_id, save_analysis, get_analysis_by_speech_id
 from schemas import SpeechCreate, SpeechAnalysisCreate
 

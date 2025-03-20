@@ -1,7 +1,6 @@
 from typing import List, Optional, TypeVar
 from sqlmodel import Session, select
-from models import YourModel  # Replace with your actual model(s)
-from database import get_session
+from backend.database.database import YourModel  # Replace with your actual model(s)
 import logging
 
 # Configure logging
