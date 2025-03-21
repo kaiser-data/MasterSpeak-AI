@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masterspeak AI - Analyze and Improve Your Speech</title>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', path='/logo.png') }}" type="image/png">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="container">
+            <!-- Logo -->
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', path='/logo.png') }}" alt="Masterspeak AI Logo" width="40" height="40">
+                Masterspeak AI
+            </a>
+            <!-- Navigation Links -->
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/base">Base</a></li>
+                    {% if current_user.is_authenticated %}
+                        <li><a href="/auth/logout">Logout</a></li>
+                    {% else %}
+                        <li><a href="/auth/register">Register</a></li>
+                        <li><a href="/auth/login">Login</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <h1>Welcome to Masterspeak AI</h1>
+        <p>Analyze, rate, and improve your speeches with actionable feedback.</p>
+
+        <!-- Upload Speech Section -->
+        <section class="upload-section">
+            <h2>Upload Your Speech</h2>
+            <form id="speech-upload-form" method="POST" action="/api/speeches">
+                <label for="content">Speech Content:</label>
+                <textarea id="content" name="content" placeholder="Paste your speech text here..." required></textarea>
+                <button type="submit">Analyze Speech</button>
+            </form>
+        </section>
+
+        <!-- Speech Results Section -->
+        <section class="results-section">
+            <h2>Your Speech Analysis Results</h2>
+            <ul id="speech-results">
+                <!-- Dynamically populated with JavaScript or Jinja2 -->
+                {% if speeches %}
+                    {% for speech in speeches %}
+                        <li>
+                            <strong>Speech ID:</strong> {{ speech.id }}<br>
+                            <strong>Clarity Score:</strong> {{ speech.clarity_score }}/10<br>
+                            <strong>Structure Score:</strong> {{ speech.structure_score }}/10<br>
+                            <strong>Filler Words:</strong> {{ speech.filler_word_count }}
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <p>No speeches analyzed yet. Start by uploading a speech!</p>
+                {% endif %}
+            </ul>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2023 Masterspeak AI. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', path='/app.js') }}"></script>
+</body>
+</html>
