@@ -4,12 +4,6 @@ Accept: application/json
 
 ###
 
-# Test a simple "hello" endpoint (if implemented)
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
-
-###
-
 # Test user registration
 POST http://127.0.0.1:8000/auth/register
 Content-Type: application/json
@@ -63,5 +57,3 @@ Content-Type: application/json
 GET http://127.0.0.1:8000/api/speeches/{speech_id}/analysis
 Authorization: Bearer <your-jwt-token>
 Accept: application/json
-
-###
