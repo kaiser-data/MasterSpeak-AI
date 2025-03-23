@@ -1,3 +1,5 @@
+#/backend/auth
+
 from fastapi import FastAPI
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import JWTAuthentication

@@ -1,11 +1,67 @@
-# Test your FastAPI endpoints
-
+# Test the root endpoint (serves the frontend)
 GET http://127.0.0.1:8000/
 Accept: application/json
 
 ###
 
+# Test a simple "hello" endpoint (if implemented)
 GET http://127.0.0.1:8000/hello/User
+Accept: application/json
+
+###
+
+# Test user registration
+POST http://127.0.0.1:8000/auth/register
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "securepassword123"
+}
+
+###
+
+# Test user login
+POST http://127.0.0.1:8000/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "securepassword123"
+}
+
+###
+
+# Test uploading a speech (requires authentication)
+POST http://127.0.0.1:8000/api/speeches
+Authorization: Bearer <your-jwt-token>
+Content-Type: application/json
+
+{
+  "content": "This is a sample speech for testing purposes. It includes filler words like um and uh."
+}
+
+###
+
+# Test fetching all speeches for the authenticated user
+GET http://127.0.0.1:8000/api/speeches
+Authorization: Bearer <your-jwt-token>
+Accept: application/json
+
+###
+
+# Test analyzing a specific speech (replace `{speech_id}` with an actual ID)
+POST http://127.0.0.1:8000/api/speeches/{speech_id}/analyze
+Authorization: Bearer <your-jwt-token>
+Content-Type: application/json
+
+{}
+
+###
+
+# Test fetching analysis results for a specific speech
+GET http://127.0.0.1:8000/api/speeches/{speech_id}/analysis
+Authorization: Bearer <your-jwt-token>
 Accept: application/json
 
 ###
