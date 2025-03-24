@@ -1,6 +1,6 @@
 from typing import List, Optional, TypeVar
 from sqlmodel import Session, select
-from backend.database.database import YourModel  # Replace with your actual model(s)
+from backend.database.models import SQLModel  # Base model for all SQLModel classes
 import logging
 
 # Configure logging
@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Generic type for model classes
-ModelType = TypeVar("ModelType", bound=YourModel)  # Replace `YourModel` with your base model if needed
+ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
 class CRUD:
@@ -25,6 +25,13 @@ class CRUD:
     def create(self, session: Session, obj_in: ModelType) -> ModelType:
         """
         Create a new record in the database.
+
+        Args:
+            session (Session): The database session.
+            obj_in (ModelType): The object to be created.
+
+        Returns:
+            ModelType: The created object.
         """
         logger.info(f"Creating new {self.model.__name__} record.")
         try:
@@ -40,6 +47,13 @@ class CRUD:
     def get(self, session: Session, id: int) -> Optional[ModelType]:
         """
         Retrieve a single record by its ID.
+
+        Args:
+            session (Session): The database session.
+            id (int): The ID of the record to retrieve.
+
+        Returns:
+            Optional[ModelType]: The retrieved object, or None if not found.
         """
         logger.info(f"Fetching {self.model.__name__} record with ID: {id}.")
         try:
@@ -48,12 +62,18 @@ class CRUD:
                 logger.warning(f"{self.model.__name__} record with ID {id} not found.")
             return obj
         except Exception as e:
-            logger.error(f"Error fetching {self.model.__name__} record: {e}")
+            logger.error(f"Error fetching {self.model.__name__} record with ID {id}: {e}")
             raise
 
     def get_all(self, session: Session) -> List[ModelType]:
         """
         Retrieve all records of the model.
+
+        Args:
+            session (Session): The database session.
+
+        Returns:
+            List[ModelType]: A list of all records.
         """
         logger.info(f"Fetching all {self.model.__name__} records.")
         try:
@@ -68,6 +88,14 @@ class CRUD:
     def update(self, session: Session, id: int, obj_in: dict) -> Optional[ModelType]:
         """
         Update an existing record by its ID.
+
+        Args:
+            session (Session): The database session.
+            id (int): The ID of the record to update.
+            obj_in (dict): A dictionary of fields to update.
+
+        Returns:
+            Optional[ModelType]: The updated object, or None if not found.
         """
         logger.info(f"Updating {self.model.__name__} record with ID: {id}.")
         try:
@@ -82,12 +110,19 @@ class CRUD:
             logger.info(f"{self.model.__name__} record updated successfully.")
             return obj
         except Exception as e:
-            logger.error(f"Error updating {self.model.__name__} record: {e}")
+            logger.error(f"Error updating {self.model.__name__} record with ID {id}: {e}")
             raise
 
     def delete(self, session: Session, id: int) -> Optional[ModelType]:
         """
         Delete a record by its ID.
+
+        Args:
+            session (Session): The database session.
+            id (int): The ID of the record to delete.
+
+        Returns:
+            Optional[ModelType]: The deleted object, or None if not found.
         """
         logger.info(f"Deleting {self.model.__name__} record with ID: {id}.")
         try:
@@ -100,9 +135,5 @@ class CRUD:
             logger.info(f"{self.model.__name__} record deleted successfully.")
             return obj
         except Exception as e:
-            logger.error(f"Error deleting {self.model.__name__} record: {e}")
+            logger.error(f"Error deleting {self.model.__name__} record with ID {id}: {e}")
             raise
-
-
-# Example usage of the CRUD class
-your_model_crud = CRUD(YourModel)  # Replace `YourModel` with your actual model
