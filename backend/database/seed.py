@@ -1,6 +1,6 @@
 from sqlmodel import Session
-from backend.database.database import engine, get_session
-from backend.database.models import User, Speech, SpeechAnalysis, SourceType
+from backend.database.database import engine, get_session  # Import database utilities
+from backend.database.models import User, Speech, SpeechAnalysis, SourceType  # Import models
 import logging
 from datetime import datetime, timedelta
 import random

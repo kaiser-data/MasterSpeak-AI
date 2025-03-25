@@ -1,58 +1,31 @@
-from fastapi import FastAPI, HTTPException
-from contextlib import asynccontextmanager
-from backend.database.database import init_db  # Assuming `engine` is defined in `database.py`
-from backend.routes.routes import router as speech_router
-import logging
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = FastAPI()
 
-# Lifespan event manager for resource initialization and cleanup
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Handles startup and shutdown events.
-    - Initializes the database on startup.
-    - Cleans up resources on shutdown (if needed).
-    """
-    logger.info("Starting up the application...")
-    init_db()
-    yield
-    logger.info("Shutting down the application...")
+# Mount the static files directory
+app.mount("/static", StaticFiles(directory="../frontend/static"), name="static")
 
-# Initialize FastAPI app with lifespan management
-app = FastAPI(
-    title="Speech Analysis API",
-    version="1.0",
-    lifespan=lifespan,
-)
+# Configure Jinja2 templates
+templates = Jinja2Templates(directory="../frontend/templates")
 
-# Root Endpoint
-@app.get("/", tags=["Root"])
-async def root():
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
     """
-    Root endpoint to welcome users.
+    Render the main page with sample data.
     """
-    return {"message": "Welcome to the Speech Analysis API"}
-
-# Personalized Hello Endpoint
-@app.get("/hello/{name}", tags=["Greetings"])
-async def say_hello(name: str):
-    """
-    A personalized greeting endpoint.
-    """
-    if not name.strip():  # Validate input
-        raise HTTPException(status_code=400, detail="Name cannot be empty")
-    return {"message": f"Hello {name}"}
-
-# Include Speech Analysis Routes
-app.include_router(speech_router, prefix="/speech", tags=["Speech Analysis"])
-
-# Health Check Endpoint (Optional but recommended for monitoring)
-@app.get("/health", tags=["Health"])
-async def health_check():
-    """
-    Health check endpoint to verify the application is running.
-    """
-    return {"status": "healthy"}
+    # Simulate some dynamic data
+    speeches = [
+        {"id": 1, "clarity_score": 8, "structure_score": 7, "filler_word_count": 5},
+        {"id": 2, "clarity_score": 9, "structure_score": 6, "filler_word_count": 3},
+    ]
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "speeches": speeches,
+            "current_user": {"is_authenticated": True},  # Simulate logged-in user
+        },
+    )

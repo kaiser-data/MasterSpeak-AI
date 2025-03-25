@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Masterspeak AI - Analyze and Improve Your Speech</title>
+    <title>MasterSpeak AI</title>
     <!-- Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
     <!-- Favicon -->
-    <link rel="icon" href="{{ url_for('static', path='/logo.png') }}" type="image/png">
+    <link rel="icon" href="{{ url_for('static', path='/Logo_MSSpeak_AI.jpg') }}" type="image/jpeg">
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -15,14 +15,13 @@
         <div class="container">
             <!-- Logo -->
             <a href="/" class="logo">
-                <img src="{{ url_for('static', path='/logo.png') }}" alt="Masterspeak AI Logo" width="40" height="40">
-                Masterspeak AI
+                <img src="{{ url_for('static', path='/Logo_MSSpeak_AI.jpg') }}" alt="MasterSpeak AI Logo" width="40" height="40">
+                MasterSpeak AI
             </a>
             <!-- Navigation Links -->
             <nav>
                 <ul class="nav-links">
                     <li><a href="/">Home</a></li>
-                    <li><a href="/base">Base</a></li>
                     {% if current_user.is_authenticated %}
                         <li><a href="/auth/logout">Logout</a></li>
                     {% else %}
@@ -36,7 +35,7 @@
 
     <!-- Main Content -->
     <main class="container">
-        <h1>Welcome to Masterspeak AI</h1>
+        <h1>Welcome to MasterSpeak AI</h1>
         <p>Analyze, rate, and improve your speeches with actionable feedback.</p>
 
         <!-- Upload Speech Section -->
@@ -53,7 +52,6 @@
         <section class="results-section">
             <h2>Your Speech Analysis Results</h2>
             <ul id="speech-results">
-                <!-- Dynamically populated with JavaScript or Jinja2 -->
                 {% if speeches %}
                     {% for speech in speeches %}
                         <li>
@@ -73,11 +71,8 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2023 Masterspeak AI. All rights reserved.</p>
+            <p>&copy; 2025 MasterSpeak AI. All rights reserved.</p>
         </div>
     </footer>
-
-    <!-- JavaScript -->
-    <script src="{{ url_for('static', path='/app.js') }}"></script>
 </body>
 </html>

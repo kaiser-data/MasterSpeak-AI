@@ -99,7 +99,7 @@ masterspeak_ai/
 │   │   └── index.html          # Main HTML file
 │   └── static/                 # Static assets (CSS, JS)
 │       ├── styles.css          # CSS file
-│       └── app.js              # JavaScript file
+│       └── script.js              # JavaScript file
 ├── data/                       # SQLite database file
 ├── .env                        # Environment variables
 ├── requirements.txt            # Python dependencies

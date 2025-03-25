@@ -1,19 +1,21 @@
 from sqlmodel import SQLModel, create_engine, Session
 from contextlib import contextmanager
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Database Configuration
-DATABASE_URL = "sqlite:///./speech_analysis.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./speech_analysis.db")
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 # Create Engine with SQLite-specific settings
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},  # Required for SQLite
-    echo=True,  # Log SQL queries (useful for debugging, disable in production)
+    echo=DEBUG,  # Log SQL queries (useful for debugging, disable in production)
 )
 
 def init_db():

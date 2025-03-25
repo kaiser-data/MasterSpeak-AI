@@ -107,4 +107,4 @@ class SpeechAnalysis(SQLModel, table=True):
     )
 
     # Relationships
-    speech: Optional[Speech] = Relationship(back_populates
+    speech: Optional[Speech] = Relationship(back_populates="analysis")

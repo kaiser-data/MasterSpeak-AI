@@ -1,50 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlmodel import Session
-from backend.database.database import get_session
-from backend.database.database import Speech, SpeechAnalysis
-from backend.crud import create_speech, get_speech_by_id, save_analysis, get_analysis_by_speech_id
-from schemas import SpeechCreate, SpeechAnalysisCreate
+from backend.database.models import Speech, SpeechAnalysis  # Import models from models.py
+from backend.database.database import get_session  # Import session utility
 
 router = APIRouter()
 
-# --- Speech Endpoints ---
+@router.post("/speeches/", response_model=Speech)
+def create_speech(speech: Speech, session: Session = Depends(get_session)):
+    """
+    Create a new speech record in the database.
+    """
+    session.add(speech)
+    session.commit()
+    session.refresh(speech)
+    return speech
 
-@router.post("/speech/", response_model=Speech)
-def upload_speech(speech_data: SpeechCreate, session: Session = Depends(get_session)):
+@router.get("/speeches/{speech_id}", response_model=Speech)
+def get_speech(speech_id: int, session: Session = Depends(get_session)):
     """
-    Uploads a new speech (text or audio metadata).
+    Retrieve a specific speech by its ID.
     """
-    speech = Speech(**speech_data.dict())
-    return create_speech(session, speech)
-
-
-@router.get("/speech/{speech_id}", response_model=Speech)
-def get_speech(speech_id: str, session: Session = Depends(get_session)):
-    """
-    Retrieves speech details by ID.
-    """
-    speech = get_speech_by_id(session, speech_id)
+    speech = session.get(Speech, speech_id)
     if not speech:
         raise HTTPException(status_code=404, detail="Speech not found")
     return speech
-
-# --- Speech Analysis Endpoints ---
-
-@router.post("/analysis/", response_model=SpeechAnalysis)
-def analyze_speech(analysis_data: SpeechAnalysisCreate, session: Session = Depends(get_session)):
-    """
-    Stores speech analysis results.
-    """
-    analysis = SpeechAnalysis(**analysis_data.dict())
-    return save_analysis(session, analysis)
-
-
-@router.get("/analysis/{speech_id}", response_model=SpeechAnalysis)
-def get_analysis(speech_id: str, session: Session = Depends(get_session)):
-    """
-    Retrieves analysis results for a specific speech ID.
-    """
-    analysis = get_analysis_by_speech_id(session, speech_id)
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    return analysis
