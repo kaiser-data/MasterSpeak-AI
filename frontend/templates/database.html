@@ -14,6 +14,7 @@
                 <th>Clarity Score</th>
                 <th>Structure Score</th>
                 <th>Filler Words</th>
+                <th>Created At</th>
             </tr>
         </thead>
         <tbody>
@@ -24,6 +25,7 @@
                     <td>{{ speech.clarity_score }}/10</td>
                     <td>{{ speech.structure_score }}/10</td>
                     <td>{{ speech.filler_word_count }}</td>
+                    <td>{{ speech.created_at }}</td>
                 </tr>
             {% endfor %}
         </tbody>

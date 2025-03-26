@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional
+from typing import Optional, List
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -30,7 +30,7 @@ class User(SQLModel, table=True):
     )
 
     # Relationships
-    speeches: list["Speech"] = Relationship(back_populates="user")
+    speeches: List["Speech"] = Relationship(back_populates="user")
 
 
 class Speech(SQLModel, table=True):
