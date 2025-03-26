@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Database - MasterSpeak AI{% endblock %}
+
+{% block content %}
+<h1>Database Entries</h1>
+
+{% if speeches %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Content</th>
+                <th>Clarity Score</th>
+                <th>Structure Score</th>
+                <th>Filler Words</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for speech in speeches %}
+                <tr>
+                    <td>{{ speech.id }}</td>
+                    <td>{{ speech.content[:50] }}...</td> <!-- Show first 50 characters -->
+                    <td>{{ speech.clarity_score }}/10</td>
+                    <td>{{ speech.structure_score }}/10</td>
+                    <td>{{ speech.filler_word_count }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No entries found in the database.</p>
+{% endif %}
+{% endblock %}

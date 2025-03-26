@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Upload & Analyze - MasterSpeak AI{% endblock %}
+
+{% block content %}
+<h1>Upload & Analyze Your Speech</h1>
+<form id="speech-upload-form" method="POST" action="/api/speech/">
+    <label for="content">Speech Content:</label>
+    <textarea id="content" name="content" placeholder="Paste your speech text here..." required></textarea>
+    <button type="submit">Analyze Speech</button>
+</form>
+{% endblock %}

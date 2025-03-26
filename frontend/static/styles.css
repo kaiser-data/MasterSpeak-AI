@@ -37,18 +37,6 @@ body {
     padding: 0 20px;
 }
 
-.results-section ul {
-    list-style: none;
-    padding: 0;
-}
-
-.results-section li {
-    background: #f9f9f9;
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 5px;
-}
-
 .footer {
     text-align: center;
     padding: 10px;
