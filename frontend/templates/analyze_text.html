@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Analyze Text - MasterSpeak AI{% endblock %}
+
+{% block content %}
+<h1>Text Analyze</h1>
+
+<form action="/analyze-text" method="post">
+    <label for="text">Enter your text:</label><br>
+    <textarea id="text" name="text" rows="10" cols="50"></textarea><br><br>
+    <button type="submit">Analyze</button>
+</form>
+
+<a href="/users">Back to Users</a>
+{% endblock %}
