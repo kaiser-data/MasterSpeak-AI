@@ -101,6 +101,9 @@ class SpeechAnalysis(SQLModel, table=True):
         ge=0,
         description="Number of filler words detected in the speech."
     )
+    prompt: str = Field(
+        description="The prompt used for analyzing the speech."
+    )
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
         description="Timestamp when the analysis was created."
