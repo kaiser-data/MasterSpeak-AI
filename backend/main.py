@@ -117,10 +117,10 @@ async def analyze_text_form(request: Request):
     )
 
 @app.post("/analyze-text", response_class=JSONResponse)
-async def analyze_text(request: Request, text: str = Form(...)):
+async def analyze_text(request: Request, text: str = Form(...), prompt_type: str = Form("default")):
     try:
-        # Analyze the text using OpenAI
-        analysis_result = analyze_text_with_gpt(text)
+        # Analyze the text using OpenAI with the specified prompt
+        analysis_result = analyze_text_with_gpt(text, prompt_type)
 
         # Save the speech and analysis to the database
         with get_session() as session:
@@ -140,9 +140,10 @@ async def analyze_text(request: Request, text: str = Form(...)):
                 speech_id=speech.id,
                 word_count=len(text.split()),
                 estimated_duration=len(text.split()) / 150,  # Approx. words per minute
-                clarity_score=analysis_result["Klarheit"],
-                structure_score=analysis_result["Struktur"],
-                filler_word_count=analysis_result["Füllwörter"],
+                clarity_score=analysis_result["Clarity"],
+                structure_score=analysis_result["Structure"],
+                filler_word_count=analysis_result["Filler Words"],
+                prompt=prompt_type,  # Store the prompt type
                 created_at=datetime.utcnow()
             )
             session.add(speech_analysis)
@@ -155,6 +156,7 @@ async def analyze_text(request: Request, text: str = Form(...)):
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
 
 # File Upload and Analysis
 @app.post("/upload-analysis", response_class=JSONResponse)
