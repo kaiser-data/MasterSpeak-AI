@@ -1,5 +1,5 @@
-from models import User, Speech, SpeechAnalysis
-from database import get_session
+from database.models import User, Speech, SpeechAnalysis
+from database.database import get_session
 import uuid
 from datetime import datetime
 
@@ -49,7 +49,9 @@ def seed_database():
             estimated_duration=2.5,
             clarity_score=8,
             structure_score=7,
-            filler_word_count=5
+            filler_word_count=5,
+            prompt="default",  # Add a prompt type
+            created_at=datetime.utcnow()
         )
         analysis2 = SpeechAnalysis(
             speech=speech2,
@@ -57,7 +59,9 @@ def seed_database():
             estimated_duration=3.0,
             clarity_score=9,
             structure_score=6,
-            filler_word_count=3
+            filler_word_count=3,
+            prompt="detailed",  # Add a prompt type
+            created_at=datetime.utcnow()
         )
         analysis3 = SpeechAnalysis(
             speech=speech3,
@@ -65,7 +69,9 @@ def seed_database():
             estimated_duration=3.5,
             clarity_score=7,
             structure_score=8,
-            filler_word_count=4
+            filler_word_count=4,
+            prompt="concise",  # Add a prompt type
+            created_at=datetime.utcnow()
         )
         analysis4 = SpeechAnalysis(
             speech=speech4,
@@ -73,7 +79,9 @@ def seed_database():
             estimated_duration=2.0,
             clarity_score=6,
             structure_score=7,
-            filler_word_count=6
+            filler_word_count=6,
+            prompt="default",  # Add a prompt type
+            created_at=datetime.utcnow()
         )
 
         # Add everything to the session
