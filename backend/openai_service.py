@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from prompts import get_prompt  # Import the get_prompt function
 
 # Load environment variables from .env file
 load_dotenv()
@@ -8,26 +9,30 @@ load_dotenv()
 # Initialize the OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def analyze_text_with_gpt(text: str):
+
+def analyze_text_with_gpt(text: str, prompt_type: str):
     """
-    Analyze the given text using OpenAI's GPT-4 Mini and return a structured response.
+    Analyze the given text using OpenAI's GPT-4 Mini with a dynamic prompt template.
+
+    Args:
+        text (str): The text to be analyzed.
+        prompt_type (str): The type of prompt to use for analysis (e.g., "default", "detailed", "concise").
+
+    Returns:
+        dict: The structured analysis result in JSON format.
     """
     try:
-        # Define the prompt for GPT-4 Mini
-        prompt = (
-            f"Bitte analysiere den folgenden Text:\n{text}\n\n"
-            "Gebe eine Bewertung für die folgenden Kriterien (jeweils auf einer Skala von 1 bis 10):\n"
-            "- Klarheit: Wie klar und verständlich ist der Text?\n"
-            "- Struktur: Wie gut ist der Text strukturiert?\n"
-            "- Füllwörter: Wie viele unnötige Füllwörter enthält der Text?\n"
-            "Antworte im JSON-Format."
-        )
+        # Dynamically load the prompt template
+        prompt_template = get_prompt(prompt_type)
+
+        # Replace the placeholder `{text}` in the prompt template with the actual text
+        prompt = prompt_template.format(text=text)
 
         # Send the request to OpenAI
         response = client.chat.completions.create(
             model="gpt-4o-mini",  # Use the appropriate model
             messages=[
-                {"role": "system", "content": "Du bist ein Experte für Textanalyse."},
+                {"role": "system", "content": "You are an expert in text analysis."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,

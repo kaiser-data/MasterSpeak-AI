@@ -21,3 +21,21 @@ PROMPTS = {
         "Respond in JSON format without explanations."
     ),
 }
+
+
+def get_prompt(prompt_type: str) -> str:
+    """
+    Retrieve a prompt template by its type.
+
+    Args:
+        prompt_type (str): The type of prompt to retrieve (e.g., "default", "detailed", "concise").
+
+    Returns:
+        str: The prompt template.
+
+    Raises:
+        ValueError: If the prompt type is not found.
+    """
+    if prompt_type not in PROMPTS:
+        raise ValueError(f"Unknown prompt type: {prompt_type}")
+    return PROMPTS[prompt_type]
