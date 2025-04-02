@@ -50,7 +50,7 @@ def seed_database():
             clarity_score=8,
             structure_score=7,
             filler_word_count=5,
-            prompt="default",  # Add a prompt type
+            prompt="default",
             created_at=datetime.utcnow()
         )
         analysis2 = SpeechAnalysis(
@@ -60,7 +60,7 @@ def seed_database():
             clarity_score=9,
             structure_score=6,
             filler_word_count=3,
-            prompt="detailed",  # Add a prompt type
+            prompt="detailed",
             created_at=datetime.utcnow()
         )
         analysis3 = SpeechAnalysis(
@@ -70,7 +70,7 @@ def seed_database():
             clarity_score=7,
             structure_score=8,
             filler_word_count=4,
-            prompt="concise",  # Add a prompt type
+            prompt="concise",
             created_at=datetime.utcnow()
         )
         analysis4 = SpeechAnalysis(
@@ -80,7 +80,7 @@ def seed_database():
             clarity_score=6,
             structure_score=7,
             filler_word_count=6,
-            prompt="default",  # Add a prompt type
+            prompt="default",
             created_at=datetime.utcnow()
         )
 

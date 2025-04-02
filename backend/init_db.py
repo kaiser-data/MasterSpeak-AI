@@ -1,5 +1,7 @@
-from sqlmodel import SQLModel
 from database import engine  # Import the database engine
+from sqlmodel import SQLModel
+from database.models import User, Speech, SpeechAnalysis
+
 
 def init_db():
     """
@@ -7,6 +9,7 @@ def init_db():
     """
     print("Initializing database...")
     try:
+        # Create all tables defined in the imported models
         SQLModel.metadata.create_all(engine)
         print("Database tables created successfully.")
     except Exception as e:

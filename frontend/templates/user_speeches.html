@@ -10,11 +10,11 @@
         <thead>
             <tr>
                 <th>Content</th>
-                <th>Source Type</th>
+                <th>Type</th>
                 <th>Clarity Score</th>
                 <th>Structure Score</th>
                 <th>Filler Words</th>
-                <th>Created At</th>
+                <th>Timestamp</th>
             </tr>
         </thead>
         <tbody>
@@ -22,9 +22,9 @@
                 <tr>
                     <td>{{ speech.content[:50] }}...</td>
                     <td>{{ speech.source_type }}</td>
-                    <td>{{ speech.analysis.clarity_score }}/10</td>
-                    <td>{{ speech.analysis.structure_score }}/10</td>
-                    <td>{{ speech.analysis.filler_word_count }}</td>
+                    <td>{{ speech.analysis.clarity_score if speech.analysis else "N/A" }}</td>
+                    <td>{{ speech.analysis.structure_score if speech.analysis else "N/A" }}</td>
+                    <td>{{ speech.analysis.filler_word_count if speech.analysis else "N/A" }}</td>
                     <td>{{ speech.timestamp }}</td>
                 </tr>
             {% endfor %}
@@ -33,5 +33,6 @@
 {% else %}
     <p>No speeches found for this user.</p>
 {% endif %}
+
 <a href="/users">Back to Users</a>
 {% endblock %}
