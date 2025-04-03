@@ -35,11 +35,12 @@ def get_session():
     """
     Context manager to provide a database session.
     Ensures the session is properly closed after use.
+    Can also be used as a generator for FastAPI Depends.
     """
     session = Session(engine)
     try:
         logger.debug("Opening database session...")
-        yield session
+        yield session  # Yield the session
         session.commit()  # Commit changes if no exceptions occur
         logger.debug("Database session committed successfully.")
     except Exception as e:
@@ -49,3 +50,11 @@ def get_session():
     finally:
         session.close()  # Ensure the session is always closed
         logger.debug("Database session closed.")
+
+# Generator-based wrapper for FastAPI Depends
+def get_db_session():
+    """
+    Generator-based function to provide a database session for FastAPI Depends.
+    """
+    with get_session() as session:
+        yield session

@@ -4,9 +4,110 @@
 
 {% block content %}
 <h1>Upload & Analyze Your Speech</h1>
+
+<!-- Dropdown menu for selecting a user -->
+<label for="user-select">Select a User:</label>
+<select id="user-select">
+    <option value="">Loading users...</option>
+</select><br><br>
+
+<!-- Form for uploading and analyzing speech -->
 <form id="speech-upload-form" method="POST" action="/api/speech/">
-    <label for="content">Speech Content:</label>
-    <textarea id="content" name="content" placeholder="Paste your speech text here..." required></textarea>
+    <label for="content">Speech Content:</label><br>
+    <textarea id="content" name="content" placeholder="Paste your speech text here..." rows="10" cols="50" required></textarea><br><br>
     <button type="submit">Analyze Speech</button>
 </form>
+
+<!-- Placeholder for displaying Markdown results -->
+<div id="result-container" style="display: none;">
+    <h2>Analysis Results</h2>
+    <div id="markdown-result"></div>
+</div>
+
+<a href="/users">Back to Users</a>
+
+<!-- Include a Markdown renderer library -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const userSelect = document.getElementById("user-select");
+    const form = document.getElementById("speech-upload-form");
+    const resultContainer = document.getElementById("result-container");
+    const markdownResultDiv = document.getElementById("markdown-result");
+
+    // Fetch the list of users from the backend
+    async function fetchUsers() {
+        try {
+            const response = await fetch("/api/users/");
+            if (!response.ok) {
+                throw new Error("Failed to fetch users.");
+            }
+            const users = await response.json();
+
+            // Populate the dropdown menu
+            userSelect.innerHTML = ""; // Clear loading message
+            users.forEach(user => {
+                const option = document.createElement("option");
+                option.value = user.id;
+                option.textContent = user.email;
+                userSelect.appendChild(option);
+            });
+
+            // Add a placeholder option
+            const placeholderOption = document.createElement("option");
+            placeholderOption.value = "";
+            placeholderOption.textContent = "Select a user";
+            userSelect.prepend(placeholderOption);
+        } catch (error) {
+            console.error("Error fetching users:", error);
+            userSelect.innerHTML = "<option value=''>Failed to load users</option>";
+        }
+    }
+
+    // Call the fetchUsers function on page load
+    fetchUsers();
+
+    // Handle form submission via JavaScript
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault(); // Prevent default form submission
+
+        // Get the selected user ID and speech content
+        const userId = userSelect.value;
+        const content = document.getElementById("content").value;
+
+        if (!userId) {
+            alert("Please select a user.");
+            return;
+        }
+
+        // Send the request to the backend
+        try {
+            const response = await fetch("/api/speech/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    content: content,
+                    source_type: "text"
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to analyze speech.");
+            }
+
+            // Parse the response
+            const data = await response.json();
+
+            // Display the Markdown result
+            markdownResultDiv.innerHTML = marked.parse(data.markdown_result);
+            resultContainer.style.display = "block"; // Show the result container
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
+    });
+});
+</script>
 {% endblock %}
