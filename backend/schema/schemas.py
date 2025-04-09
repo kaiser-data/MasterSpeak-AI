@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 from uuid import UUID
 from enum import Enum
@@ -48,9 +48,10 @@ class SpeechAnalysisBase(BaseModel):
     speech_id: UUID = Field(..., description="ID of the speech being analyzed")
     word_count: int = Field(..., ge=0, description="Total number of words in the speech")
     estimated_duration: float = Field(..., ge=0, description="Estimated duration of the speech in minutes")
-    clarity_score: int = Field(..., ge=0, le=10, description="Clarity score of the speech (0-10)")
-    structure_score: int = Field(..., ge=0, le=10, description="Structure score of the speech (0-10)")
+    clarity_score: int = Field(..., ge=1, le=10, description="Clarity score of the speech (1-10)")
+    structure_score: int = Field(..., ge=1, le=10, description="Structure score of the speech (1-10)")
     filler_word_count: int = Field(..., ge=0, description="Number of filler words detected in the speech")
+    prompt: str = Field(..., description="The prompt used for analyzing the speech")
 
 class SpeechAnalysisCreate(SpeechAnalysisBase):
     """
@@ -64,6 +65,29 @@ class SpeechAnalysisResponse(SpeechAnalysisBase):
     """
     id: UUID = Field(..., description="Unique identifier for the analysis")
     created_at: datetime = Field(..., description="Timestamp when the analysis was created")
+
+    class Config:
+        from_attributes = True  # Enable ORM mode for compatibility with SQLModel/SQLAlchemy
+
+# --- User Schemas ---
+
+class UserBase(BaseModel):
+    """
+    Base schema for user-related data.
+    """
+    email: str = Field(..., description="Email address of the user (must be unique)")
+
+class UserCreate(UserBase):
+    """
+    Schema for creating a new user.
+    """
+    hashed_password: str = Field(..., description="Hashed password of the user")
+
+class UserResponse(UserBase):
+    """
+    Schema for returning user data.
+    """
+    id: UUID = Field(..., description="Unique identifier for the user")
 
     class Config:
         from_attributes = True  # Enable ORM mode for compatibility with SQLModel/SQLAlchemy
