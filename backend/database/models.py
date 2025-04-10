@@ -30,7 +30,7 @@ class User(SQLModel, table=True):
     )
 
     # Relationships
-    speeches: List["Speech"] = Relationship(back_populates="user")
+    speeches: Optional[List["Speech"]] = Relationship(back_populates="user")
 
 
 class Speech(SQLModel, table=True):

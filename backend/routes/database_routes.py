@@ -4,8 +4,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
-from ..database.models import Speech, SpeechAnalysis  # Import models from models.py
-from ..database.database import get_session  # Import session utility
+from database.models import Speech, SpeechAnalysis  # Import models from models.py
+from database.database import get_session  # Import session utility
 
 router = APIRouter()
 

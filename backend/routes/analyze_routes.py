@@ -2,14 +2,12 @@
 
 from fastapi import APIRouter, Request, Form, File, UploadFile, Depends
 from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
-from pydantic import BaseModel
 from datetime import datetime
 import uuid
-from ..openai_service import analyze_text_with_gpt
-from ..database.models import User, Speech, SpeechAnalysis
-from ..database.database import get_session
+from openai_service import analyze_text_with_gpt
+from database.models import User, Speech, SpeechAnalysis
+from database.database import get_session
 
 router = APIRouter()
 

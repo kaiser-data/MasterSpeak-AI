@@ -5,8 +5,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from uuid import UUID
-from backend.database.models import User, Speech
-from backend.database.database import get_session
+from database.models import User, Speech
+from database.database import get_session
 
 router = APIRouter()
 
