@@ -1,4 +1,7 @@
-PROMPTS = {
+from typing import Dict
+
+# Define the prompts as constants
+PROMPTS: Dict[str, str] = {
     "default": (
         "Please analyze the following text:\n{text}\n\n"
         "Provide a rating for the following criteria (on a scale of 1 to 10):\n"
@@ -36,6 +39,7 @@ def get_prompt(prompt_type: str) -> str:
     Raises:
         ValueError: If the prompt type is not found.
     """
-    if prompt_type not in PROMPTS:
+    try:
+        return PROMPTS[prompt_type]
+    except KeyError:
         raise ValueError(f"Unknown prompt type: {prompt_type}")
-    return PROMPTS[prompt_type]
