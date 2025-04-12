@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from uuid import UUID
 from enum import Enum
 
@@ -19,8 +19,17 @@ class SpeechBase(BaseModel):
     Base schema for speech-related data.
     """
     source_type: SourceType = Field(..., description="Source type must be 'audio' or 'text'")
-    content: str = Field(..., description="Original speech content (text or transcription)")
+    content: str = Field(..., min_length=1, description="Original speech content (text or transcription)")
     feedback: Optional[str] = Field(None, description="Optional feedback on the speech")
+
+    @validator("content")
+    def validate_content(cls, value):
+        """
+        Ensure the content is not empty or whitespace-only.
+        """
+        if not value.strip():
+            raise ValueError("Content cannot be empty or whitespace-only.")
+        return value
 
 class SpeechCreate(SpeechBase):
     """
@@ -51,7 +60,7 @@ class SpeechAnalysisBase(BaseModel):
     clarity_score: int = Field(..., ge=1, le=10, description="Clarity score of the speech (1-10)")
     structure_score: int = Field(..., ge=1, le=10, description="Structure score of the speech (1-10)")
     filler_word_count: int = Field(..., ge=0, description="Number of filler words detected in the speech")
-    prompt: str = Field(..., description="The prompt used for analyzing the speech")
+    prompt: str = Field(..., min_length=1, description="The prompt used for analyzing the speech")
 
 class SpeechAnalysisCreate(SpeechAnalysisBase):
     """
@@ -77,11 +86,20 @@ class UserBase(BaseModel):
     """
     email: str = Field(..., description="Email address of the user (must be unique)")
 
+    @validator("email")
+    def validate_email(cls, value):
+        """
+        Ensure the email is valid.
+        """
+        if "@" not in value or "." not in value.split("@")[-1]:
+            raise ValueError("Invalid email format.")
+        return value
+
 class UserCreate(UserBase):
     """
     Schema for creating a new user.
     """
-    hashed_password: str = Field(..., description="Hashed password of the user")
+    hashed_password: str = Field(..., min_length=8, description="Hashed password of the user")
 
 class UserResponse(UserBase):
     """

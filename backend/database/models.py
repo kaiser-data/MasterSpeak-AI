@@ -1,6 +1,8 @@
+# database/models.py
+
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
-import uuid
+from uuid import UUID
 from datetime import datetime
 from enum import Enum
 
@@ -15,99 +17,41 @@ class User(SQLModel, table=True):
     """
     Represents a user in the system.
     """
-    id: Optional[uuid.UUID] = Field(
-        default_factory=uuid.uuid4,
-        primary_key=True,
-        description="Unique identifier for the user."
-    )
-    email: str = Field(
-        unique=True,
-        index=True,
-        description="Email address of the user (must be unique)."
-    )
-    hashed_password: str = Field(
-        description="Hashed password of the user."
-    )
+    id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    hashed_password: str
 
     # Relationships
-    speeches: Optional[List["Speech"]] = Relationship(back_populates="user")
-
+    speeches: List["Speech"] = Relationship(back_populates="user")
 
 class Speech(SQLModel, table=True):
     """
     Represents a speech or text input by a user.
     """
-    id: Optional[uuid.UUID] = Field(
-        default_factory=uuid.uuid4,
-        primary_key=True,
-        description="Unique identifier for the speech."
-    )
-    user_id: uuid.UUID = Field(
-        foreign_key="user.id",
-        description="ID of the user who created this speech."
-    )
-    source_type: SourceType = Field(
-        description="Type of the source ('audio' or 'text')."
-    )
-    content: str = Field(
-        description="The actual content of the speech or text."
-    )
-    feedback: Optional[str] = Field(
-        default=None,
-        description="Feedback provided for the speech (optional)."
-    )
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Timestamp when the speech was created."
-    )
+    id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: Optional[UUID] = Field(foreign_key="user.id")
+    source_type: SourceType
+    content: str
+    feedback: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
     user: Optional[User] = Relationship(back_populates="speeches")
     analysis: Optional["SpeechAnalysis"] = Relationship(back_populates="speech")
 
-
 class SpeechAnalysis(SQLModel, table=True):
     """
     Represents the analysis results of a speech.
     """
-    id: Optional[uuid.UUID] = Field(
-        default_factory=uuid.uuid4,
-        primary_key=True,
-        description="Unique identifier for the analysis."
-    )
-    speech_id: uuid.UUID = Field(
-        foreign_key="speech.id",
-        description="ID of the speech being analyzed."
-    )
-    word_count: int = Field(
-        ge=0,
-        description="Total number of words in the speech."
-    )
-    estimated_duration: float = Field(
-        ge=0,
-        description="Estimated duration of the speech in minutes."
-    )
-    clarity_score: int = Field(
-        ge=1,
-        le=10,
-        description="Clarity score of the speech on a scale of 1-10."
-    )
-    structure_score: int = Field(
-        ge=1,
-        le=10,
-        description="Structure score of the speech on a scale of 1-10."
-    )
-    filler_word_count: int = Field(
-        ge=0,
-        description="Number of filler words detected in the speech."
-    )
-    prompt: str = Field(
-        description="The prompt used for analyzing the speech."
-    )
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Timestamp when the analysis was created."
-    )
+    id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
+    speech_id: UUID = Field(foreign_key="speech.id")
+    word_count: int = Field(ge=0)
+    estimated_duration: float = Field(ge=0)
+    clarity_score: int = Field(ge=1, le=10)
+    structure_score: int = Field(ge=1, le=10)
+    filler_word_count: int = Field(ge=0)
+    prompt: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
     speech: Optional[Speech] = Relationship(back_populates="analysis")

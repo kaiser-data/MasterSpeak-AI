@@ -5,11 +5,17 @@
 {% block content %}
 <h1>Text Analyze</h1>
 
-<form action="/analyze-text" method="post">
-    <label for="text">Enter your text:</label><br>
-    <textarea id="text" name="text" rows="10" cols="50"></textarea><br><br>
-    <button type="submit">Analyze</button>
-</form>
+    <form action="/analyze-text" method="post">
+        <label for="text">Enter Text:</label><br>
+        <textarea id="text" name="text" rows="10" cols="50" required></textarea><br>
+        <label for="prompt_type">Prompt Type:</label>
+        <select id="prompt_type" name="prompt_type">
+            <option value="default">Default</option>
+            <option value="detailed">Detailed</option>
+            <option value="concise">Concise</option>
+        </select><br>
+        <button type="submit">Analyze</button>
+    </form>
 
 <a href="/users">Back to Users</a>
 {% endblock %}
