@@ -3,6 +3,7 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from uuid import UUID
+import uuid
 from datetime import datetime
 from enum import Enum
 

@@ -12,7 +12,7 @@ from fastapi_users.password import PasswordHelper
 from typing import AsyncGenerator
 from uuid import UUID
 
-from schemas.user_schemas import UserRead, UserCreate, UserUpdate  # We'll assume you have these
+from schemas.user_schema import UserRead, UserCreate, UserUpdate  # We'll assume you have these
 
 # Create a session factory for database connections
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
