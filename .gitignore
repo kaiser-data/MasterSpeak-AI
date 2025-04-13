@@ -5,3 +5,42 @@ __pycache__/
 .env.http
 *.db
 *.sqlite3
+
+# Environment variables - Contains secrets!
+.env
+
+# Python virtual environment
+venv/
+.venv/
+env/
+ENV/
+*.pyenv
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database files (if using SQLite locally for dev/testing)
+# Adjust the path/name according to your settings.py or .env
+*.db
+*.sqlite
+*.sqlite3
+# Example based on config:
+data/masterspeak.db
+# Example based on older file:
+backend/database/test.db
+
+# Log files
+*.log
+
+# IDE/Editor specific files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
