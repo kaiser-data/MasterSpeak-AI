@@ -1,6 +1,4 @@
-# schemas/__init__.py
-
-# Import all schemas classes to make them accessible from the schemas package
+# Import all schema classes to make them accessible from the schemas package
 from .user_schema import UserCreate, UserRead, UserUpdate
 from .speech_schema import SpeechCreate, SpeechRead, SpeechAnalysisRead
 from .analysis_schema import AnalysisCreate, AnalysisRead
