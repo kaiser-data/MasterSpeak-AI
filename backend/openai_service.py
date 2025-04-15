@@ -1,86 +1,76 @@
+# backend/openai_service.py
 import os
-from dotenv import load_dotenv
-from openai import OpenAI
-from prompts import get_prompt  # Import the get_prompt function
 import json
+import logging
+from openai import OpenAI, APIError, AuthenticationError, RateLimitError, BadRequestError
+from fastapi import HTTPException
+from pydantic import ValidationError
 
-# Load environment variables from .env file
-load_dotenv()
+from backend.config import settings # Import settings
+from backend.prompts import get_prompt
+from backend.schemas.analysis_schema import AnalysisResponse # Import schema
 
-# Initialize the OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger = logging.getLogger(__name__)
 
+# Initialize the client using the API key from settings
+# Consider using AsyncOpenAI for async routes
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-def analyze_text_with_gpt(text: str, prompt_type: str = "default") -> dict:
+def analyze_text_with_gpt(text: str, prompt_type: str = "default") -> AnalysisResponse:
     """
-    Analyze the given text using OpenAI's GPT model with a specified prompt type.
+    Analyze text using OpenAI GPT, handle errors, and validate the response.
 
     Args:
         text (str): The text to analyze.
-        prompt_type (str): The type of prompt to use for analysis (e.g., "default", "detailed", "concise").
+        prompt_type (str): The type of prompt to use.
 
     Returns:
-        dict: A dictionary containing the analysis results.
+        AnalysisResponse: Validated analysis data.
 
     Raises:
-        ValueError: If the response cannot be parsed as JSON.
-        Exception: For any other errors during the analysis.
+        HTTPException: If analysis fails or response is invalid.
     """
     try:
-        # Dynamically load the prompt template
         prompt_template = get_prompt(prompt_type)
-
-        # Replace the placeholder `{text}` in the prompt template with the actual text
         prompt = prompt_template.format(text=text)
 
-        # Send the request to OpenAI
+        logger.info(f"Sending request to OpenAI (prompt type: {prompt_type})...")
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Use the appropriate model
+            model="gpt-4o-mini", # Or your preferred model
             messages=[
-                {"role": "system",
-                 "content": "You are an expert in text analysis. Return all responses as valid JSON."},
+                {"role": "system", "content": "You are an expert speech analyst. Respond ONLY with valid JSON matching the requested structure."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.7,
-            max_tokens=200,
+            temperature=0.5, # Adjust temperature as needed
+            max_tokens=300, # Adjust based on expected response size
+            response_format={"type": "json_object"} # Use JSON mode if available
         )
 
-        # Extract the response content
-        analysis = response.choices[0].message.content.strip()
+        analysis_content = response.choices[0].message.content.strip()
+        logger.debug(f"Raw OpenAI response content: {analysis_content}")
 
-        # Strip Markdown-style backticks and surrounding whitespace
-        if analysis.startswith("```") and analysis.endswith("```"):
-            analysis = analysis.strip("`").strip()
-            if analysis.lower().startswith("json"):
-                analysis = analysis[4:].strip()
-
-        # Parse the JSON response
-        try:
-            analysis_data = json.loads(analysis)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse JSON response: {analysis}") from e
-
+        # Parse and validate the JSON response using Pydantic schema
+        analysis_data = AnalysisResponse.parse_raw(analysis_content)
+        logger.info("OpenAI analysis successful and response validated.")
         return analysis_data
 
+    except (APIError, RateLimitError) as e:
+        logger.error(f"OpenAI API Error: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Analysis service communication error: {type(e).__name__}")
+    except AuthenticationError as e:
+        logger.error(f"OpenAI Authentication Error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Analysis service authentication failed. Check API key configuration.")
+    except BadRequestError as e:
+         logger.error(f"OpenAI Bad Request Error (possibly prompt issue): {e}", exc_info=True)
+         raise HTTPException(status_code=400, detail=f"Invalid request sent to analysis service: {e}")
+    except ValidationError as e:
+        logger.error(f"Invalid JSON structure or data types received from OpenAI:\n{analysis_content}\nValidation Errors: {e.errors()}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Received invalid analysis data format from service.")
+    except ValueError as e: # Catch errors from get_prompt
+         logger.error(f"Value error (e.g., unknown prompt type): {e}", exc_info=True)
+         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        print(f"Error analyzing text with OpenAI: {e}")
-        raise
+        logger.error(f"Unexpected error during OpenAI analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during analysis.")
 
-
-# Add a test case at the end of the script
-if __name__ == "__main__":
-    # Define test inputs
-    test_text = "This is a sample text for analysis."
-    test_prompt_type = "default"
-
-    try:
-        # Call the function with test inputs
-        result = analyze_text_with_gpt(test_text, test_prompt_type)
-
-        # Print the result
-        print("Test Result:")
-        print(json.dumps(result, indent=4))
-
-    except Exception as e:
-        # Handle any errors during the test
-        print(f"Test failed with error: {e}")
+# Remove the __main__ test block or update it to use the new structure/schema
