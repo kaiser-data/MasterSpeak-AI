@@ -142,4 +142,6 @@ def test_analyze_text_endpoint_unauthenticated(client: TestClient):
 
 # Add more tests for:
 # - File uploads (/analysis/upload)
-# - Invalid input (e.g., missing
+# - Invalid input (e.g., missing form fields)
+# - Cases where analyze_text_with_gpt *is mocked to raise an error*
+# - Other endpoints (auth, getting speeches/analyses)
