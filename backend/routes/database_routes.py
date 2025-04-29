@@ -4,13 +4,17 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
-from database.models import Speech, SpeechAnalysis  # Import models from models.py
-from database.database import get_session  # Import session utility
+from typing import List
+from backend.database.models import Speech, SpeechAnalysis  # Import models from models.py
+from backend.database.database import get_session  # Import session utility
+from backend.config import settings  # Import settings
+import os
 
 router = APIRouter()
 
-# Configure Jinja2 templates
-templates = Jinja2Templates(directory="../frontend/templates")
+# Configure Jinja2 templates with absolute path
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 # --- Database Page ---
 @router.get("/database", response_class=HTMLResponse)
@@ -18,7 +22,7 @@ async def read_database(request: Request, session: Session = Depends(get_session
     """
     Fetch all speeches from the database and render them on the database page.
     """
-    speeches = session.exec(select(Speech)).all()
+    speeches = session.query(Speech).all()
     serialized_speeches = [speech.dict() for speech in speeches]
     return templates.TemplateResponse(
         "database.html",

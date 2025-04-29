@@ -1,6 +1,6 @@
-from database import engine  # Import the database engine
+from backend.database import engine  # Import the database engine
 from sqlmodel import SQLModel
-from database.models import User, Speech, SpeechAnalysis
+from backend.database.models import User, Speech, SpeechAnalysis
 
 
 def init_db():

@@ -1,25 +1,104 @@
 # routes/user_routes.py
 
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from uuid import UUID
-from database.models import User, Speech
-from database.database import get_session  # Import session utility
+from backend.database.models import User, Speech
+from backend.database.database import get_session
+import os
+import logging
+from pathlib import Path
+from sqlalchemy.exc import OperationalError
+from typing import Optional
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-templates = Jinja2Templates(directory="../frontend/templates")
+# Configure Jinja2 templates with absolute path
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "templates")
+templates = Jinja2Templates(directory=templates_dir)
+
+def check_database_exists():
+    """Check if the database file exists."""
+    data_dir = Path(__file__).parent.parent.parent / "data"
+    db_path = data_dir / "masterspeak.db"
+    return db_path.exists()
 
 @router.get("/users", response_class=HTMLResponse)
 async def read_users(request: Request, session: Session = Depends(get_session)):
-    users = session.exec(select(User)).all()
-    serialized_users = [{"id": user.id, "email": user.email} for user in users]
-    return templates.TemplateResponse(
-        "users.html",
-        {"request": request, "users": serialized_users}
-    )
+    """
+    Display all users in the system.
+    """
+    try:
+        if not check_database_exists():
+            raise HTTPException(
+                status_code=500,
+                detail="Database file not found. Please ensure the application is properly initialized."
+            )
+        
+        users = session.query(User).all()
+        serialized_users = [{"id": str(user.id), "email": user.email, "full_name": user.full_name} for user in users]
+        
+        return templates.TemplateResponse(
+            "users.html",
+            {"request": request, "users": serialized_users}
+        )
+    except OperationalError as e:
+        logger.error(f"Database error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred. Please ensure the database is properly configured."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+@router.get("/users/{user_id}", response_class=HTMLResponse)
+async def read_user(
+    request: Request,
+    user_id: str,
+    session: Session = Depends(get_session)
+):
+    """
+    Display details of a specific user.
+    """
+    try:
+        if not check_database_exists():
+            raise HTTPException(
+                status_code=500,
+                detail="Database file not found. Please ensure the application is properly initialized."
+            )
+
+        user_uuid = UUID(user_id)
+        user = session.query(User).filter(User.id == user_uuid).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        serialized_user = {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser
+        }
+        
+        return templates.TemplateResponse(
+            "user_detail.html",
+            {"request": request, "user": serialized_user}
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    except OperationalError as e:
+        logger.error(f"Database error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred. Please ensure the database is properly configured."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 @router.get("/users/{user_id}/speeches", response_class=HTMLResponse)
 async def read_user_speeches(
@@ -27,36 +106,53 @@ async def read_user_speeches(
     user_id: str,
     session: Session = Depends(get_session)
 ):
+    """
+    Display all speeches for a specific user.
+    """
     try:
-        user_uuid = UUID(user_id)
-        user = session.get(User, user_uuid)
-        if not user:
-            return templates.TemplateResponse(
-                "error.html",
-                {"request": request, "message": "User not found"}
+        if not check_database_exists():
+            raise HTTPException(
+                status_code=500,
+                detail="Database file not found. Please ensure the application is properly initialized."
             )
 
-        serialized_user = {"id": user.id, "email": user.email}
+        user_uuid = UUID(user_id)
+        user = session.query(User).filter(User.id == user_uuid).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        speeches = session.query(Speech).filter(Speech.user_id == user_uuid).all()
+        
+        serialized_user = {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name
+        }
+        
         serialized_speeches = [
             {
-                "id": speech.id,
+                "id": str(speech.id),
+                "title": speech.title,
                 "content": speech.content,
                 "source_type": speech.source_type,
-                "timestamp": speech.timestamp,
-                "analysis": {
-                    "clarity_score": speech.analysis.clarity_score,
-                    "structure_score": speech.analysis.structure_score,
-                    "filler_word_count": speech.analysis.filler_word_count,
-                } if speech.analysis else None,
+                "created_at": speech.created_at.isoformat(),
+                "feedback": speech.feedback
             }
-            for speech in user.speeches
+            for speech in speeches
         ]
+        
         return templates.TemplateResponse(
             "user_speeches.html",
             {"request": request, "user": serialized_user, "speeches": serialized_speeches}
         )
     except ValueError:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "message": "Invalid user ID format"}
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    except OperationalError as e:
+        logger.error(f"Database error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred. Please ensure the database is properly configured."
         )
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")

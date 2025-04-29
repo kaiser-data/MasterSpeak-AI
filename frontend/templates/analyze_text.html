@@ -1,21 +1,62 @@
 {% extends "base.html" %}
 
-{% block title %}Analyze Text - MasterSpeak AI{% endblock %}
+{% block title %}Analyze Your Speech Text{% endblock %}
 
 {% block content %}
-<h1>Text Analyze</h1>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Analyze Your Speech Text</h1>
+    
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
 
-    <form action="/analyze-text" method="post">
-        <label for="text">Enter Text:</label><br>
-        <textarea id="text" name="text" rows="10" cols="50" required></textarea><br>
-        <label for="prompt_type">Prompt Type:</label>
-        <select id="prompt_type" name="prompt_type">
-            <option value="default">Default</option>
-            <option value="detailed">Detailed</option>
-            <option value="concise">Concise</option>
-        </select><br>
-        <button type="submit">Analyze</button>
-    </form>
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <form action="/analysis/analyze" method="post">
+                <div class="mb-4">
+                    <h4>Select User</h4>
+                    {% if users %}
+                        <div class="list-group">
+                            {% for user in users %}
+                            <label class="list-group-item d-flex justify-content-between align-items-center {% if user.selected %}active{% endif %}">
+                                <div>
+                                    <input class="form-check-input me-1" type="radio" name="user_id" value="{{ user.id }}" required {% if user.selected %}checked{% endif %}>
+                                    <strong>{{ user.full_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ user.email }}</small>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No users available. Please create a user first.
+                        </div>
+                    {% endif %}
+                </div>
 
-<a href="/users">Back to Users</a>
+                <div class="mb-4">
+                    <label for="text" class="form-label">Enter Your Speech Text</label>
+                    <textarea class="form-control" id="text" name="text" rows="10" required></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label for="prompt_type" class="form-label">Analysis Type</label>
+                    <select class="form-select" id="prompt_type" name="prompt_type" required>
+                        <option value="general">General Analysis</option>
+                        <option value="clarity">Clarity Focus</option>
+                        <option value="structure">Structure Focus</option>
+                        <option value="engagement">Engagement Focus</option>
+                    </select>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Analyze</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

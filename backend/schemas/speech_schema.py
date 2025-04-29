@@ -28,6 +28,14 @@ class SpeechRead(SpeechBase):
     class Config:
         orm_mode = True
 
+class SpeechUpdate(SpeechBase):
+    """
+    Schema for updating an existing speech entry.
+    """
+    source_type: Optional[str] = Field(None, description="Source type must be 'audio' or 'text'")
+    content: Optional[str] = Field(None, min_length=1, description="Original speech content (text or transcription)")
+    feedback: Optional[str] = Field(None, description="Optional feedback on the speech")
+
 class SpeechAnalysisRead(BaseModel):
     """
     Schema for returning speech analysis results.

@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, CookieTransport
-from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator
 from uuid import UUID
 from fastapi_users.manager import BaseUserManager
 
-from database.models import User  # Your SQLAlchemy user model
-from database.database import engine  # Your SQLAlchemy engine
-from schemas.user_schema import UserRead, UserCreate, UserUpdate  # Import Pydantic schemas
+from backend.database.models import User  # Your SQLAlchemy user model
+from backend.database.database import engine  # Your SQLAlchemy engine
+from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate  # Import Pydantic schemas
 
 # Create a session factory for database connections
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -13,6 +13,11 @@ class SourceType(str, Enum):
     """
     AUDIO = "audio"
     TEXT = "text"
+    PUBLIC_SPEECH = "public_speech"
+    PRESENTATION = "presentation"
+    CONFERENCE = "conference"
+    PRODUCT_LAUNCH = "product_launch"
+    REPORT = "report"
 
 class User(SQLModel, table=True):
     """
@@ -21,6 +26,9 @@ class User(SQLModel, table=True):
     id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
     email: str = Field(unique=True, index=True)
     hashed_password: str
+    full_name: Optional[str] = None
+    is_active: bool = Field(default=True)
+    is_superuser: bool = Field(default=False)
 
     # Relationships
     speeches: List["Speech"] = Relationship(back_populates="user")
@@ -31,10 +39,11 @@ class Speech(SQLModel, table=True):
     """
     id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: Optional[UUID] = Field(foreign_key="user.id")
+    title: str
     source_type: SourceType
     content: str
     feedback: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
     user: Optional[User] = Relationship(back_populates="speeches")
@@ -46,12 +55,10 @@ class SpeechAnalysis(SQLModel, table=True):
     """
     id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
     speech_id: UUID = Field(foreign_key="speech.id")
-    word_count: int = Field(ge=0)
-    estimated_duration: float = Field(ge=0)
-    clarity_score: int = Field(ge=1, le=10)
-    structure_score: int = Field(ge=1, le=10)
-    filler_word_count: int = Field(ge=0)
-    prompt: str
+    clarity_score: int = Field(ge=1, le=100)
+    engagement_score: int = Field(ge=1, le=100)
+    confidence_score: int = Field(ge=1, le=100)
+    feedback: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships

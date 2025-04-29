@@ -1,7 +1,7 @@
 # Import all schema classes to make them accessible from the schemas package
 from .user_schema import UserCreate, UserRead, UserUpdate
-from .speech_schema import SpeechCreate, SpeechRead, SpeechAnalysisRead
-from .analysis_schema import AnalysisCreate, AnalysisRead
+from .speech_schema import SpeechCreate, SpeechRead, SpeechUpdate
+from .analysis_schema import SpeechAnalysisCreate, AnalysisResult, AnalysisResponse
 
 # Optionally, define __all__ to explicitly specify what is exported
 __all__ = [
@@ -10,7 +10,8 @@ __all__ = [
     "UserUpdate",
     "SpeechCreate",
     "SpeechRead",
-    "SpeechAnalysisRead",
-    "AnalysisCreate",
-    "AnalysisRead",
+    "SpeechUpdate",
+    "SpeechAnalysisCreate",
+    "AnalysisResult",
+    "AnalysisResponse",
 ]
