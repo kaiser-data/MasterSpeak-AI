@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlmodel
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+python-dotenv
+jinja2
+aiofiles
+openai
+pytest
+httpx
+sqlalchemy
+pydantic
+pydantic-settings 

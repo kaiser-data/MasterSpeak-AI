@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.email }} - MasterSpeak AI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">User Details</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{{ user.full_name }}</h5>
+            <p class="card-text"><strong>Email:</strong> {{ user.email }}</p>
+            <p class="card-text"><strong>ID:</strong> {{ user.id }}</p>
+            <p class="card-text"><strong>Created:</strong> {{ user.created_at }}</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Text Analysis Form -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Analyze Text</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/analysis/text" method="post">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <div class="mb-3">
+                            <label for="text" class="form-label">Enter Your Speech Text</label>
+                            <textarea class="form-control" id="text" name="text" rows="10" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="prompt_type" class="form-label">Analysis Type</label>
+                            <select class="form-select" id="prompt_type" name="prompt_type" required>
+                                <option value="general">General Analysis</option>
+                                <option value="clarity">Clarity Focus</option>
+                                <option value="structure">Structure Focus</option>
+                                <option value="engagement">Engagement Focus</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Analyze Text</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Upload Form -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Upload & Analyze</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/analysis/upload" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Upload Your Speech File</label>
+                            <input class="form-control" type="file" id="file" name="file" accept=".txt,.pdf" required>
+                            <div class="form-text">Supported formats: TXT, PDF</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="prompt_type" class="form-label">Analysis Type</label>
+                            <select class="form-select" id="prompt_type" name="prompt_type" required>
+                                <option value="general">General Analysis</option>
+                                <option value="clarity">Clarity Focus</option>
+                                <option value="structure">Structure Focus</option>
+                                <option value="engagement">Engagement Focus</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100">Upload & Analyze</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+        <a href="/users/{{ user.id }}/speeches" class="btn btn-primary me-md-2">View Speeches</a>
+        <a href="/users" class="btn btn-secondary">Back to Users</a>
+    </div>
+</div>
+{% endblock %} 
