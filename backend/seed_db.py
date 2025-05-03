@@ -104,25 +104,31 @@ def seed_database():
             analyses = [
                 {
                     "speech_id": speech_ids[0],
+                    "word_count": 150,
                     "clarity_score": 8.5,
-                    "engagement_score": 7.8,
-                    "confidence_score": 9.0,
+                    "structure_score": 8.0,
+                    "filler_word_count": 5,
+                    "prompt": "default",
                     "feedback": "Strong opening and clear product messaging. Consider adding more specific data points.",
                     "created_at": datetime.utcnow() - timedelta(days=30)
                 },
                 {
                     "speech_id": speech_ids[1],
+                    "word_count": 200,
                     "clarity_score": 7.2,
-                    "engagement_score": 8.5,
-                    "confidence_score": 8.0,
+                    "structure_score": 7.5,
+                    "filler_word_count": 8,
+                    "prompt": "default",
                     "feedback": "Good structure but could use more visual aids. Consider breaking down complex data.",
                     "created_at": datetime.utcnow() - timedelta(days=15)
                 },
                 {
                     "speech_id": speech_ids[2],
+                    "word_count": 300,
                     "clarity_score": 9.0,
-                    "engagement_score": 9.2,
-                    "confidence_score": 9.5,
+                    "structure_score": 9.2,
+                    "filler_word_count": 3,
+                    "prompt": "default",
                     "feedback": "Excellent keynote with strong audience engagement. Well-paced and informative.",
                     "created_at": datetime.utcnow() - timedelta(days=7)
                 }

@@ -55,10 +55,12 @@ class SpeechAnalysis(SQLModel, table=True):
     """
     id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
     speech_id: UUID = Field(foreign_key="speech.id")
-    clarity_score: int = Field(ge=1, le=100)
-    engagement_score: int = Field(ge=1, le=100)
-    confidence_score: int = Field(ge=1, le=100)
-    feedback: str
+    word_count: int
+    clarity_score: int = Field(ge=1, le=10)
+    structure_score: int = Field(ge=1, le=10)
+    filler_word_count: Optional[int] = None
+    prompt: str
+    feedback: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships

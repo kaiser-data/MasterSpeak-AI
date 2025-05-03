@@ -2,9 +2,12 @@
 
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy.orm import sessionmaker
-from backend.config import settings # Import the settings instance
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.pool import QueuePool
+from backend.config import settings
 import logging
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -16,39 +19,54 @@ data_dir.mkdir(exist_ok=True)
 database_url = settings.DATABASE_URL
 if database_url.startswith("sqlite:///"):
     db_path = data_dir / "masterspeak.db"
-    database_url = f"sqlite:///{db_path.absolute()}"
+    database_url = f"sqlite+aiosqlite:///{db_path.absolute()}"
 
-# Configure engine with proper UUID handling
-engine = create_engine(
+# Configure engine with connection pooling and optimized settings
+engine = create_async_engine(
     database_url,
-    echo=True,
+    echo=False,  # Disable SQL logging in production
+    poolclass=QueuePool,
+    pool_size=20,  # Maximum number of connections to keep open
+    max_overflow=10,  # Maximum number of connections to create above pool_size
+    pool_timeout=30,  # Seconds to wait before giving up on getting a connection
+    pool_recycle=1800,  # Recycle connections after 30 minutes
     connect_args={"check_same_thread": False}  # Needed for SQLite
 )
 
-# Create a session factory (consider async version for production)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create async session factory
+AsyncSessionLocal = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
+)
 
-# Dependency to get a database session
-def get_session():
-    """Dependency to get a database session."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@asynccontextmanager
+async def get_session():
+    """Async context manager for database sessions."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
-# Initialize the database (ensure models are imported before calling)
-def init_db():
-    """Initializes the database by creating tables if they don't exist."""
-    # Import models here or ensure they are imported before calling init_db
-    from backend.database import models # Assuming models are defined here
+# Initialize the database
+async def init_db():
+    """Initialize the database by creating tables if they don't exist."""
+    from backend.database import models
     logger.info("Initializing database...")
     try:
-        # Create tables if they don't exist
-        SQLModel.metadata.create_all(engine)
-        logger.info("Database tables created successfully.")
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.drop_all)
+            await conn.run_sync(SQLModel.metadata.create_all)
+        logger.info("Database initialized successfully")
     except Exception as e:
-        logger.error(f"Error initializing database: {str(e)}")
+        logger.error(f"Error initializing database: {e}")
         raise
 
 # Note: For production with PostgreSQL and async, you'd use:

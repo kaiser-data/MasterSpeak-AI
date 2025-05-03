@@ -37,7 +37,7 @@ def check_database_exists():
     return db_path.exists()
 
 # --- Helper Function ---
-def save_speech_and_analysis(
+async def save_speech_and_analysis(
     session: Session,
     user_id: UUID,
     content: str,
@@ -65,14 +65,16 @@ def save_speech_and_analysis(
         session.refresh(speech)
 
         # 3. Get analysis from OpenAI
-        analysis_result = analyze_text_with_gpt(content, prompt_type)
+        analysis_result = await analyze_text_with_gpt(content, prompt_type)
 
         # 4. Create and save Analysis record
         analysis = SpeechAnalysis(
             speech_id=speech.id,
+            word_count=word_count,
             clarity_score=analysis_result.clarity_score,
-            engagement_score=analysis_result.engagement_score,
-            confidence_score=analysis_result.confidence_score,
+            structure_score=analysis_result.structure_score,
+            filler_word_count=analysis_result.filler_words_rating,
+            prompt=prompt_type,
             feedback=analysis_result.feedback,
             created_at=datetime.utcnow()
         )
@@ -111,7 +113,7 @@ async def analyze_text_endpoint(
             raise HTTPException(status_code=404, detail="User not found")
 
         # Save and analyze
-        analysis = save_speech_and_analysis(
+        analysis = await save_speech_and_analysis(
             session=session,
             user_id=user_uuid,
             content=text,
@@ -121,7 +123,7 @@ async def analyze_text_endpoint(
 
         # Redirect to the analysis results page
         return RedirectResponse(
-            url=f"/users/{user_id}/speeches/{analysis.speech_id}/analysis",
+            url=f"/analysis/results/{analysis.speech_id}",
             status_code=303
         )
 
@@ -134,13 +136,14 @@ async def analyze_text_endpoint(
 @router.post("/upload", response_class=HTMLResponse)
 async def upload_and_analyze(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
+    text_content: str = Form(None),
     user_id: str = Form(...),
     prompt_type: str = Form("default"),
     session: Session = Depends(get_session)
 ):
     """
-    Upload and analyze a file.
+    Upload and analyze a file or text content.
     """
     try:
         # Convert user_id to UUID
@@ -154,12 +157,18 @@ async def upload_and_analyze(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Read file content
-        content = await file.read()
-        content = content.decode("utf-8")
+        # Get content from either file or text input
+        content = None
+        if file:
+            content = await file.read()
+            content = content.decode("utf-8")
+        elif text_content:
+            content = text_content
+        else:
+            raise HTTPException(status_code=400, detail="Either file or text content must be provided")
 
         # Save and analyze
-        analysis = save_speech_and_analysis(
+        analysis = await save_speech_and_analysis(
             session=session,
             user_id=user_uuid,
             content=content,
@@ -169,7 +178,7 @@ async def upload_and_analyze(
 
         # Redirect to the analysis results page
         return RedirectResponse(
-            url=f"/users/{user_id}/speeches/{analysis.speech_id}/analysis",
+            url=f"/analysis/results/{analysis.speech_id}",
             status_code=303
         )
 
@@ -195,6 +204,7 @@ async def get_analyze_text_page(
                 detail="Database file not found. Please ensure the application is properly initialized."
             )
         
+        # Get all users
         users = session.query(User).all()
         if not users:
             logger.warning("No users found in database")
@@ -244,6 +254,7 @@ async def get_upload_page(
                 detail="Database file not found. Please ensure the application is properly initialized."
             )
         
+        # Get all users
         users = session.query(User).all()
         if not users:
             logger.warning("No users found in database")
@@ -276,6 +287,46 @@ async def get_upload_page(
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+@router.get("/results/{speech_id}", response_class=HTMLResponse)
+async def get_analysis_results(
+    request: Request,
+    speech_id: str,
+    session: Session = Depends(get_session)
+):
+    """
+    Display the analysis results for a specific speech.
+    """
+    try:
+        # Convert speech_id to UUID
+        try:
+            speech_uuid = UUID(speech_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid speech ID format")
+
+        # Get the speech and its analysis
+        speech = session.query(Speech).filter(Speech.id == speech_uuid).first()
+        if not speech:
+            raise HTTPException(status_code=404, detail="Speech not found")
+
+        analysis = session.query(SpeechAnalysis).filter(SpeechAnalysis.speech_id == speech_uuid).first()
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+
+        return templates.TemplateResponse(
+            "analysis_results.html",
+            {
+                "request": request,
+                "speech": speech,
+                "analysis": analysis
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_analysis_results: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Add endpoints to GET analysis results, maybe GET /speeches/{speech_id}/analysis
 # Ensure these GET endpoints also use authentication and check ownership
