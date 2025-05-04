@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes import all_routers
 from backend.database.database import init_db, engine
 from backend.seed_db import seed_database
+from backend.config import settings
 from pathlib import Path
 import logging
 import asyncio
@@ -41,13 +42,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Configure CORS
+# Configure CORS with secure settings
+allowed_origins = [
+    origin.strip() 
+    for origin in settings.ALLOWED_ORIGINS.split(",")
+    if origin.strip()
+]
+
+# Add wildcard for development
+if settings.ENV == "development":
+    allowed_origins.append("http://localhost:*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    expose_headers=["Content-Length", "X-Total-Count"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Get the project root directory

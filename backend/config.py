@@ -9,26 +9,42 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 ENV_FILE = PROJECT_ROOT / '.env'
 
-# Load .env file explicitly if needed, although BaseSettings can do it
-print("Loading environment variables...")
-print(f"Looking for .env file at: {ENV_FILE}")
+# Load .env file
 load_dotenv(ENV_FILE)
 
-# Debug: Print environment variables (without sensitive values)
-print("Environment variables loaded:")
-print(f"DATABASE_URL exists: {'DATABASE_URL' in os.environ}")
-print(f"SECRET_KEY exists: {'SECRET_KEY' in os.environ}")
-print(f"OPENAI_API_KEY exists: {'OPENAI_API_KEY' in os.environ}")
+# Only print debug info in development
+if os.getenv('ENV', 'development') == 'development':
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Looking for .env file at: {ENV_FILE}")
+    logger.debug(f"Environment check - DATABASE_URL: {'✓' if 'DATABASE_URL' in os.environ else '✗'}")
+    logger.debug(f"Environment check - SECRET_KEY: {'✓' if 'SECRET_KEY' in os.environ else '✗'}")
+    logger.debug(f"Environment check - OPENAI_API_KEY: {'✓' if 'OPENAI_API_KEY' in os.environ else '✗'}")
 
 class Settings(BaseSettings):
     """Manages application settings loaded from environment variables."""
-    # Default database URL if not set in .env
+    # Application environment
+    ENV: str = "development"
+    
+    # Database configuration
     DATABASE_URL: str = "sqlite:///./data/masterspeak.db"
+    
+    # API Keys
     OPENAI_API_KEY: str
+    
+    # Security settings
     SECRET_KEY: str  # For JWT token generation/validation
-    # Add other secrets if using fastapi-users defaults
-    # RESET_SECRET: str
-    # VERIFICATION_SECRET: str
+    RESET_SECRET: str  # For password reset tokens
+    VERIFICATION_SECRET: str  # For email verification tokens
+    
+    # CORS settings
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000"  # Comma-separated list
+    
+    # JWT settings
+    JWT_LIFETIME_SECONDS: int = 3600  # 1 hour default
+    
+    # Application settings
+    DEBUG: bool = False
 
     # Optional: Configure BaseSettings to read from .env
     class Config:

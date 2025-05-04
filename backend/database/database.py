@@ -62,7 +62,12 @@ async def init_db():
     logger.info("Initializing database...")
     try:
         async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.drop_all)
+            # Only drop tables in development mode
+            if settings.ENV == "development" and settings.DEBUG:
+                logger.warning("Development mode: Dropping existing tables")
+                await conn.run_sync(SQLModel.metadata.drop_all)
+            
+            # Create tables if they don't exist
             await conn.run_sync(SQLModel.metadata.create_all)
         logger.info("Database initialized successfully")
     except Exception as e:

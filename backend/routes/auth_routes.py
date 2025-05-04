@@ -6,10 +6,14 @@ from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator
 from uuid import UUID
 from fastapi_users.manager import BaseUserManager
+import logging
 
 from backend.database.models import User  # Your SQLAlchemy user model
 from backend.database.database import engine  # Your SQLAlchemy engine
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate  # Import Pydantic schemas
+from backend.config import settings  # Import settings for secure configuration
+
+logger = logging.getLogger(__name__)
 
 # Create a session factory for database connections
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -22,32 +26,41 @@ async def get_user_db() -> AsyncGenerator[SQLAlchemyUserDatabase, None]:
     finally:
         db.close()
 
-# Custom UserManager
+# Custom UserManager with secure configuration
 class UserManager(BaseUserManager[User, UUID]):
-    reset_password_token_secret = "RESET_SECRET"  # Use environment variables in production
-    verification_token_secret = "VERIFICATION_SECRET"  # Use environment variables in production
+    reset_password_token_secret = settings.RESET_SECRET
+    verification_token_secret = settings.VERIFICATION_SECRET
 
     async def on_after_register(self, user: User, request=None):
-        print(f"User {user.id} has registered.")
+        logger.info(f"User {user.id} has registered.")
 
     async def on_after_forgot_password(self, user: User, token: str, request=None):
-        print(f"User {user.id} requested a password reset. Token: {token}")
+        logger.info(f"User {user.id} requested a password reset.")  # Never log tokens!
 
     async def on_after_request_verify(self, user: User, token: str, request=None):
-        print(f"User {user.id} requested email verification. Token: {token}")
+        logger.info(f"User {user.id} requested email verification.")  # Never log tokens!
 
 # Dependency to get the UserManager
 async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
 
-# JWT Strategy
+# JWT Strategy with secure configuration
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret="SECRET", lifetime_seconds=3600)  # Use environment variables in production
+    return JWTStrategy(
+        secret=settings.SECRET_KEY,
+        lifetime_seconds=settings.JWT_LIFETIME_SECONDS
+    )
 
-# Auth Backend
+# Auth Backend with secure configuration
 auth_backend = AuthenticationBackend(
     name="jwt",
-    transport=CookieTransport(cookie_name="access_token", cookie_max_age=3600),
+    transport=CookieTransport(
+        cookie_name="access_token",
+        cookie_max_age=settings.JWT_LIFETIME_SECONDS,
+        cookie_secure=settings.ENV == "production",  # Secure cookies in production
+        cookie_httponly=True,  # Prevent XSS attacks
+        cookie_samesite="lax"  # CSRF protection
+    ),
     get_strategy=get_jwt_strategy,
 )
 
