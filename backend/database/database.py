@@ -3,7 +3,7 @@
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.pool import QueuePool
+from sqlalchemy.pool import StaticPool
 from backend.config import settings
 import logging
 from pathlib import Path
@@ -22,14 +22,11 @@ if database_url.startswith("sqlite:///"):
     database_url = f"sqlite+aiosqlite:///{db_path.absolute()}"
 
 # Configure engine with connection pooling and optimized settings
+# Note: For SQLite with async, we use StaticPool
 engine = create_async_engine(
     database_url,
     echo=False,  # Disable SQL logging in production
-    poolclass=QueuePool,
-    pool_size=20,  # Maximum number of connections to keep open
-    max_overflow=10,  # Maximum number of connections to create above pool_size
-    pool_timeout=30,  # Seconds to wait before giving up on getting a connection
-    pool_recycle=1800,  # Recycle connections after 30 minutes
+    poolclass=StaticPool,  # Use StaticPool for SQLite async
     connect_args={"check_same_thread": False}  # Needed for SQLite
 )
 

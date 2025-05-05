@@ -1,0 +1,138 @@
+{
+  "timestamp": "2025-08-08T00:35:35.232953",
+  "summary": {
+    "total": 25,
+    "passed": 25,
+    "failed": 0,
+    "success_rate": "100%"
+  },
+  "results": [
+    {
+      "test": "ENV:ENV",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:DATABASE_URL",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:OPENAI_API_KEY",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:SECRET_KEY",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:RESET_SECRET",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:VERIFICATION_SECRET",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:ALLOWED_ORIGINS",
+      "status": "\u2705 PASS",
+      "message": "Type: str"
+    },
+    {
+      "test": "ENV:JWT_LIFETIME_SECONDS",
+      "status": "\u2705 PASS",
+      "message": "Type: int"
+    },
+    {
+      "test": "ENV:DEBUG",
+      "status": "\u2705 PASS",
+      "message": "Type: bool"
+    },
+    {
+      "test": "Database Initialization",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "Database Session",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "Table:user",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "Table:speech",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "Table:speechanalysis",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "UserManager:reset_secret",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "UserManager:verification_secret",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "JWT:secret_key",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "JWT:lifetime",
+      "status": "\u2705 PASS",
+      "message": "3600s"
+    },
+    {
+      "test": "Auth Backend",
+      "status": "\u2705 PASS",
+      "message": "jwt"
+    },
+    {
+      "test": "CORS:origins",
+      "status": "\u2705 PASS",
+      "message": "2 origins"
+    },
+    {
+      "test": "FastAPI App",
+      "status": "\u2705 PASS",
+      "message": "Routes: 26"
+    },
+    {
+      "test": "Routers Loaded",
+      "status": "\u2705 PASS",
+      "message": "Count: 5"
+    },
+    {
+      "test": "Static Files",
+      "status": "\u2705 PASS",
+      "message": ""
+    },
+    {
+      "test": "OpenAI:api_key",
+      "status": "\u2705 PASS",
+      "message": "Configured"
+    },
+    {
+      "test": "OpenAI:rate_limiter",
+      "status": "\u2705 PASS",
+      "message": "Tokens/min: 40"
+    }
+  ],
+  "warnings": [],
+  "errors": []
+}

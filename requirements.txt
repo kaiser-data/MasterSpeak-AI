@@ -12,4 +12,5 @@ pytest
 httpx
 sqlalchemy
 pydantic
-pydantic-settings 
+pydantic-settings
+aiosqlite 

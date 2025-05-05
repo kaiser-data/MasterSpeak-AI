@@ -1,11 +1,12 @@
 # backend/seed_db.py
 
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
-from backend.database.database import engine, SessionLocal
-from sqlmodel import SQLModel, Session, select
+from backend.database.database import engine, get_session
+from sqlmodel import SQLModel, select
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import logging
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,15 +18,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-def seed_database():
+async def seed_database():
     try:
-        # Create tables
-        SQLModel.metadata.create_all(engine)
-        logger.info("Database tables created successfully")
+        logger.info("Starting database seeding...")
 
         # Check if database is already seeded
-        with Session(engine) as session:
-            if session.exec(select(User)).first():
+        async with get_session() as session:
+            result = await session.execute(select(User).limit(1))
+            if result.first():
                 logger.info("Database already seeded, skipping...")
                 return
 
@@ -55,15 +55,16 @@ def seed_database():
         ]
 
         # Create users
-        with Session(engine) as session:
+        async with get_session() as session:
             for user_data in users:
                 user = User(**user_data)
                 session.add(user)
-            session.commit()
+            await session.commit()
             logger.info("Users created successfully")
 
             # Get user IDs for speeches
-            user_ids = [user.id for user in session.exec(select(User)).all()]
+            result = await session.execute(select(User))
+            user_ids = [user.id for user in result.scalars().all()]
 
             # Sample speech data
             speeches = [
@@ -94,11 +95,12 @@ def seed_database():
             for speech_data in speeches:
                 speech = Speech(**speech_data)
                 session.add(speech)
-            session.commit()
+            await session.commit()
             logger.info("Speeches created successfully")
 
             # Get speech IDs for analyses
-            speech_ids = [speech.id for speech in session.exec(select(Speech)).all()]
+            result = await session.execute(select(Speech))
+            speech_ids = [speech.id for speech in result.scalars().all()]
 
             # Sample analysis data
             analyses = [
@@ -138,7 +140,7 @@ def seed_database():
             for analysis_data in analyses:
                 analysis = SpeechAnalysis(**analysis_data)
                 session.add(analysis)
-            session.commit()
+            await session.commit()
             logger.info("Analyses created successfully")
 
     except Exception as e:
@@ -146,4 +148,4 @@ def seed_database():
         raise
 
 if __name__ == "__main__":
-    seed_database()
+    asyncio.run(seed_database())
