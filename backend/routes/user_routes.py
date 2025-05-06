@@ -3,14 +3,14 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from backend.database.models import User, Speech
 from backend.database.database import get_session
+from backend.utils import check_database_exists, serialize_user
 import os
 import logging
-from pathlib import Path
-from sqlalchemy.exc import OperationalError
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -20,14 +20,9 @@ router = APIRouter()
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
-def check_database_exists():
-    """Check if the database file exists."""
-    data_dir = Path(__file__).parent.parent.parent / "data"
-    db_path = data_dir / "masterspeak.db"
-    return db_path.exists()
 
 @router.get("/users", response_class=HTMLResponse)
-async def read_users(request: Request, session: Session = Depends(get_session)):
+async def read_users(request: Request, session: AsyncSession = Depends(get_session)):
     """
     Display all users in the system.
     """
@@ -38,8 +33,9 @@ async def read_users(request: Request, session: Session = Depends(get_session)):
                 detail="Database file not found. Please ensure the application is properly initialized."
             )
         
-        users = session.query(User).all()
-        serialized_users = [{"id": str(user.id), "email": user.email, "full_name": user.full_name} for user in users]
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+        serialized_users = [serialize_user(user) for user in users]
         
         return templates.TemplateResponse(
             "users.html",

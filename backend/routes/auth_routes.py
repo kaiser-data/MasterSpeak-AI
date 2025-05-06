@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, CookieTransport
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator
 from uuid import UUID

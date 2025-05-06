@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-08-08T00:35:35.232953",
+  "timestamp": "2025-08-08T01:24:43.987514",
   "summary": {
-    "total": 25,
-    "passed": 25,
-    "failed": 0,
-    "success_rate": "100%"
+    "total": 19,
+    "passed": 17,
+    "failed": 2,
+    "success_rate": "89%"
   },
   "results": [
     {
@@ -78,29 +78,9 @@
       "message": ""
     },
     {
-      "test": "UserManager:reset_secret",
-      "status": "\u2705 PASS",
-      "message": ""
-    },
-    {
-      "test": "UserManager:verification_secret",
-      "status": "\u2705 PASS",
-      "message": ""
-    },
-    {
-      "test": "JWT:secret_key",
-      "status": "\u2705 PASS",
-      "message": ""
-    },
-    {
-      "test": "JWT:lifetime",
-      "status": "\u2705 PASS",
-      "message": "3600s"
-    },
-    {
-      "test": "Auth Backend",
-      "status": "\u2705 PASS",
-      "message": "jwt"
+      "test": "Authentication Configuration",
+      "status": "\u274c FAIL",
+      "message": "name 'Session' is not defined"
     },
     {
       "test": "CORS:origins",
@@ -108,19 +88,9 @@
       "message": "2 origins"
     },
     {
-      "test": "FastAPI App",
-      "status": "\u2705 PASS",
-      "message": "Routes: 26"
-    },
-    {
-      "test": "Routers Loaded",
-      "status": "\u2705 PASS",
-      "message": "Count: 5"
-    },
-    {
-      "test": "Static Files",
-      "status": "\u2705 PASS",
-      "message": ""
+      "test": "API Startup",
+      "status": "\u274c FAIL",
+      "message": "name 'Session' is not defined"
     },
     {
       "test": "OpenAI:api_key",
@@ -134,5 +104,8 @@
     }
   ],
   "warnings": [],
-  "errors": []
+  "errors": [
+    "Authentication Configuration: name 'Session' is not defined",
+    "API Startup: name 'Session' is not defined"
+  ]
 }
