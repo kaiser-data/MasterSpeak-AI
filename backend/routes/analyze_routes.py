@@ -3,20 +3,21 @@
 from fastapi import APIRouter, Request, Form, File, UploadFile, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 import uuid
 import logging
 from typing import Optional
 from uuid import UUID
 import os
-from sqlalchemy.exc import OperationalError
 from pathlib import Path
 
 # Local imports
 from backend.openai_service import analyze_text_with_gpt
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
 from backend.database.database import get_session
+from backend.utils import check_database_exists, serialize_user, serialize_speech
 from backend.schemas.analysis_schema import AnalysisResult, SpeechAnalysisCreate, AnalysisResponse
 from backend.schemas.speech_schema import SpeechRead
 
@@ -30,15 +31,10 @@ logger = logging.getLogger(__name__)
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
-def check_database_exists():
-    """Check if the database file exists."""
-    data_dir = Path(__file__).parent.parent.parent / "data"
-    db_path = data_dir / "masterspeak.db"
-    return db_path.exists()
 
 # --- Helper Function ---
 async def save_speech_and_analysis(
-    session: Session,
+    session: AsyncSession,
     user_id: UUID,
     content: str,
     source_type: SourceType,
@@ -61,8 +57,8 @@ async def save_speech_and_analysis(
             created_at=datetime.utcnow()
         )
         session.add(speech)
-        session.commit()
-        session.refresh(speech)
+        await session.commit()
+        await session.refresh(speech)
 
         # 3. Get analysis from OpenAI
         analysis_result = await analyze_text_with_gpt(content, prompt_type)
@@ -79,14 +75,14 @@ async def save_speech_and_analysis(
             created_at=datetime.utcnow()
         )
         session.add(analysis)
-        session.commit()
-        session.refresh(analysis)
+        await session.commit()
+        await session.refresh(analysis)
 
         return analysis
 
     except Exception as e:
         logger.error(f"Error in save_speech_and_analysis: {str(e)}")
-        session.rollback()
+        await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/text", response_class=HTMLResponse)
@@ -95,7 +91,7 @@ async def analyze_text_endpoint(
     text: str = Form(...),
     user_id: str = Form(...),
     prompt_type: str = Form("default"),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Analyze text input and return results.
@@ -108,7 +104,8 @@ async def analyze_text_endpoint(
             raise HTTPException(status_code=400, detail="Invalid user ID format")
 
         # Verify user exists
-        user = session.query(User).filter(User.id == user_uuid).first()
+        result = await session.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -140,7 +137,7 @@ async def upload_and_analyze(
     text_content: str = Form(None),
     user_id: str = Form(...),
     prompt_type: str = Form("default"),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Upload and analyze a file or text content.
@@ -153,7 +150,8 @@ async def upload_and_analyze(
             raise HTTPException(status_code=400, detail="Invalid user ID format")
 
         # Verify user exists
-        user = session.query(User).filter(User.id == user_uuid).first()
+        result = await session.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -191,7 +189,7 @@ async def upload_and_analyze(
 @router.get("/text", response_class=HTMLResponse)
 async def get_analyze_text_page(
     request: Request, 
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     user_id: Optional[str] = None
 ):
     """
@@ -205,7 +203,8 @@ async def get_analyze_text_page(
             )
         
         # Get all users
-        users = session.query(User).all()
+        result = await session.execute(select(User))
+        users = result.scalars().all()
         if not users:
             logger.warning("No users found in database")
             return templates.TemplateResponse(
@@ -241,7 +240,7 @@ async def get_analyze_text_page(
 @router.get("/upload", response_class=HTMLResponse)
 async def get_upload_page(
     request: Request, 
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     user_id: Optional[str] = None
 ):
     """
@@ -255,7 +254,8 @@ async def get_upload_page(
             )
         
         # Get all users
-        users = session.query(User).all()
+        result = await session.execute(select(User))
+        users = result.scalars().all()
         if not users:
             logger.warning("No users found in database")
             return templates.TemplateResponse(
@@ -292,7 +292,7 @@ async def get_upload_page(
 async def get_analysis_results(
     request: Request,
     speech_id: str,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Display the analysis results for a specific speech.
@@ -305,11 +305,15 @@ async def get_analysis_results(
             raise HTTPException(status_code=400, detail="Invalid speech ID format")
 
         # Get the speech and its analysis
-        speech = session.query(Speech).filter(Speech.id == speech_uuid).first()
+        # Get speech
+        speech_result = await session.execute(select(Speech).where(Speech.id == speech_uuid))
+        speech = speech_result.scalar_one_or_none()
         if not speech:
             raise HTTPException(status_code=404, detail="Speech not found")
 
-        analysis = session.query(SpeechAnalysis).filter(SpeechAnalysis.speech_id == speech_uuid).first()
+        # Get analysis
+        analysis_result = await session.execute(select(SpeechAnalysis).where(SpeechAnalysis.speech_id == speech_uuid))
+        analysis = analysis_result.scalar_one_or_none()
         if not analysis:
             raise HTTPException(status_code=404, detail="Analysis not found")
 

@@ -3,15 +3,15 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session
+from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import List
 from backend.database.models import User, Speech
 from backend.database.database import get_session
+from backend.utils import check_database_exists, serialize_user, serialize_speech
 import os
 import logging
-from pathlib import Path
-from sqlalchemy.exc import OperationalError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -20,11 +20,6 @@ logger = logging.getLogger(__name__)
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
-def check_database_exists():
-    """Check if the database file exists."""
-    data_dir = Path(__file__).parent.parent.parent / "data"
-    db_path = data_dir / "masterspeak.db"
-    return db_path.exists()
 
 # Home page
 @router.get("/home", response_class=HTMLResponse)
@@ -43,7 +38,7 @@ async def contact(request: Request):
 
 # Analyze text page
 @router.get("/analyze-text", response_class=HTMLResponse)
-async def analyze_text(request: Request, session: Session = Depends(get_session)):
+async def analyze_text(request: Request, session: AsyncSession = Depends(get_session)):
     try:
         if not check_database_exists():
             raise HTTPException(
@@ -52,7 +47,8 @@ async def analyze_text(request: Request, session: Session = Depends(get_session)
             )
         
         # Get all users
-        users = session.query(User).all()
+        result = await session.execute(select(User))
+        users = result.scalars().all()
         if not users:
             logger.warning("No users found in database")
             return templates.TemplateResponse(
@@ -86,7 +82,7 @@ async def analyze_text(request: Request, session: Session = Depends(get_session)
 
 # Upload analysis page
 @router.get("/upload-analysis", response_class=HTMLResponse)
-async def upload_analysis(request: Request, session: Session = Depends(get_session)):
+async def upload_analysis(request: Request, session: AsyncSession = Depends(get_session)):
     try:
         if not check_database_exists():
             raise HTTPException(
@@ -95,7 +91,8 @@ async def upload_analysis(request: Request, session: Session = Depends(get_sessi
             )
         
         # Get all users
-        users = session.query(User).all()
+        result = await session.execute(select(User))
+        users = result.scalars().all()
         if not users:
             logger.warning("No users found in database")
             return templates.TemplateResponse(
@@ -129,7 +126,7 @@ async def upload_analysis(request: Request, session: Session = Depends(get_sessi
 
 # Database page
 @router.get("/database", response_class=HTMLResponse)
-async def database(request: Request, session: Session = Depends(get_session)):
+async def database(request: Request, session: AsyncSession = Depends(get_session)):
     try:
         if not check_database_exists():
             raise HTTPException(
@@ -137,7 +134,8 @@ async def database(request: Request, session: Session = Depends(get_session)):
                 detail="Database file not found. Please ensure the application is properly initialized."
             )
         
-        speeches = session.query(Speech).all()
+        result = await session.execute(select(Speech))
+        speeches = result.scalars().all()
         serialized_speeches = [
             {
                 "id": str(speech.id),
@@ -166,7 +164,7 @@ async def database(request: Request, session: Session = Depends(get_session)):
 
 # Users page
 @router.get("/users", response_class=HTMLResponse)
-async def read_users(request: Request, session: Session = Depends(get_session)):
+async def read_users(request: Request, session: AsyncSession = Depends(get_session)):
     try:
         if not check_database_exists():
             raise HTTPException(
@@ -174,7 +172,8 @@ async def read_users(request: Request, session: Session = Depends(get_session)):
                 detail="Database file not found. Please ensure the application is properly initialized."
             )
         
-        users = session.query(User).all()
+        result = await session.execute(select(User))
+        users = result.scalars().all()
         serialized_users = [
             {
                 "id": str(user.id),
@@ -203,7 +202,7 @@ async def read_users(request: Request, session: Session = Depends(get_session)):
 async def read_user_speeches(
     request: Request,
     user_id: str,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     try:
         if not check_database_exists():
@@ -213,11 +212,13 @@ async def read_user_speeches(
             )
         
         user_uuid = UUID(user_id)
-        user = session.query(User).filter(User.id == user_uuid).first()
+        user_result = await session.execute(select(User).where(User.id == user_uuid))
+        user = user_result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        speeches = session.query(Speech).filter(Speech.user_id == user_uuid).all()
+        speeches_result = await session.execute(select(Speech).where(Speech.user_id == user_uuid))
+        speeches = speeches_result.scalars().all()
         
         serialized_user = {
             "id": str(user.id),
