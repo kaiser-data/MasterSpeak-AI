@@ -55,7 +55,7 @@ async def read_users(request: Request, session: AsyncSession = Depends(get_sessi
 async def read_user(
     request: Request,
     user_id: str,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Display details of a specific user.
@@ -68,7 +68,8 @@ async def read_user(
             )
 
         user_uuid = UUID(user_id)
-        user = session.query(User).filter(User.id == user_uuid).first()
+        result = await session.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -100,7 +101,7 @@ async def read_user(
 async def read_user_speeches(
     request: Request,
     user_id: str,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Display all speeches for a specific user.
@@ -113,11 +114,13 @@ async def read_user_speeches(
             )
 
         user_uuid = UUID(user_id)
-        user = session.query(User).filter(User.id == user_uuid).first()
+        user_result = await session.execute(select(User).where(User.id == user_uuid))
+        user = user_result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        speeches = session.query(Speech).filter(Speech.user_id == user_uuid).all()
+        speeches_result = await session.execute(select(Speech).where(Speech.user_id == user_uuid))
+        speeches = speeches_result.scalars().all()
         
         serialized_user = {
             "id": str(user.id),

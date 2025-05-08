@@ -3,29 +3,25 @@ from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, CookieTransport
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator
 from uuid import UUID
 from fastapi_users.manager import BaseUserManager
 import logging
 
-from backend.database.models import User  # Your SQLAlchemy user model
-from backend.database.database import engine  # Your SQLAlchemy engine
-from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate  # Import Pydantic schemas
-from backend.config import settings  # Import settings for secure configuration
+from backend.database.models import User
+from backend.database.database import get_session
+from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create a session factory for database connections
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Dependency to get the user DB
+# Dependency to get the user DB with async session
 async def get_user_db() -> AsyncGenerator[SQLAlchemyUserDatabase, None]:
-    db = SessionLocal()
-    try:
-        yield SQLAlchemyUserDatabase(User, db)
-    finally:
-        db.close()
+    async with get_session() as session:
+        try:
+            yield SQLAlchemyUserDatabase(User, session)
+        finally:
+            pass  # Session cleanup handled by context manager
 
 # Custom UserManager with secure configuration
 class UserManager(BaseUserManager[User, UUID]):
@@ -74,10 +70,35 @@ fastapi_users = FastAPIUsers[User, UUID](
 # Define a router for authentication routes
 router = APIRouter()
 
-# Include authentication routes
+# Include FastAPIUsers authentication routes
+router.include_router(
+    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
+)
+router.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+router.include_router(
+    fastapi_users.get_reset_password_router(),
+    prefix="/auth",
+    tags=["auth"],
+)
+router.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
+router.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+
+# Custom routes
 @router.get("/users/me", response_model=UserRead)
 async def read_current_user(user: User = Depends(fastapi_users.current_user(active=True))):
     return user
 
 # Export the router
-__all__ = ["router"]
+__all__ = ["router", "fastapi_users"]
