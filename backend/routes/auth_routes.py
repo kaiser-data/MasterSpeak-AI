@@ -12,7 +12,22 @@ from backend.database.models import User
 from backend.database.database import get_session
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.config import settings
-from backend.middleware import limiter, RateLimits
+try:
+    from backend.middleware import limiter, RateLimits
+except ImportError:
+    # Mock limiter for when slowapi is not available
+    class MockLimiter:
+        def limit(self, limit_string):
+            def decorator(func):
+                return func
+            return decorator
+    limiter = MockLimiter()
+    RateLimits = type('RateLimits', (), {
+        'API_READ': '30/minute',
+        'AUTH_LOGIN': '5/minute',
+        'AUTH_REGISTER': '3/minute', 
+        'AUTH_RESET_PASSWORD': '2/minute'
+    })()
 
 logger = logging.getLogger(__name__)
 

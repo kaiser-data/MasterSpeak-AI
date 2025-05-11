@@ -8,6 +8,9 @@ try:
     SLOWAPI_AVAILABLE = True
 except ImportError:
     SLOWAPI_AVAILABLE = False
+    # Mock functions for when slowapi is not available
+    def get_remote_address(request):
+        return request.client.host if request.client else "unknown"
     
 from fastapi import Request
 from starlette.responses import JSONResponse
@@ -31,22 +34,33 @@ else:
     limiter = MockLimiter()
 
 # Custom rate limit exceeded handler
-def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+def rate_limit_exceeded_handler(request: Request, exc):
     """
     Custom handler for rate limit exceeded errors.
     """
-    logger.warning(f"Rate limit exceeded for {get_remote_address(request)}: {exc.detail}")
-    
-    return JSONResponse(
-        status_code=429,
-        content={
-            "error": "Rate limit exceeded",
-            "detail": exc.detail,
-            "retry_after": getattr(exc, "retry_after", None),
-            "timestamp": "2025-08-08T01:51:03.201098"
-        },
-        headers={"Retry-After": str(getattr(exc, "retry_after", 60))}
-    )
+    if SLOWAPI_AVAILABLE:
+        logger.warning(f"Rate limit exceeded for {get_remote_address(request)}: {getattr(exc, 'detail', str(exc))}")
+        
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "detail": getattr(exc, 'detail', str(exc)),
+                "retry_after": getattr(exc, "retry_after", None),
+                "timestamp": "2025-08-08T01:51:03.201098"
+            },
+            headers={"Retry-After": str(getattr(exc, "retry_after", 60))}
+        )
+    else:
+        # Fallback handler when slowapi is not available
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "detail": "Too many requests",
+                "timestamp": "2025-08-08T01:51:03.201098"
+            }
+        )
 
 # Rate limiting configurations for different endpoints
 class RateLimits:

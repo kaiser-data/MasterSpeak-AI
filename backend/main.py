@@ -20,6 +20,10 @@ except ImportError:
     RATE_LIMITING_AVAILABLE = False
     limiter = None
     RateLimits = None
+    # Create mock exception class for when slowapi is not available
+    class RateLimitExceeded(Exception):
+        pass
+    rate_limit_exceeded_handler = None
 from backend.routes import all_routers
 from backend.api.v1 import api_router
 from backend.database.database import init_db, engine
@@ -66,7 +70,7 @@ app = FastAPI(
 )
 
 # Add rate limiting (if available)
-if RATE_LIMITING_AVAILABLE:
+if RATE_LIMITING_AVAILABLE and rate_limit_exceeded_handler:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 

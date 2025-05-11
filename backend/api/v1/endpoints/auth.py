@@ -4,7 +4,22 @@ from fastapi import APIRouter, Depends, Request
 from backend.routes.auth_routes import fastapi_users, auth_backend
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.database.models import User
-from backend.middleware import limiter, RateLimits
+try:
+    from backend.middleware import limiter, RateLimits
+except ImportError:
+    # Mock limiter for when slowapi is not available
+    class MockLimiter:
+        def limit(self, limit_string):
+            def decorator(func):
+                return func
+            return decorator
+    limiter = MockLimiter()
+    RateLimits = type('RateLimits', (), {
+        'API_READ': '30/minute',
+        'AUTH_LOGIN': '5/minute',
+        'AUTH_REGISTER': '3/minute', 
+        'AUTH_RESET_PASSWORD': '2/minute'
+    })()
 
 router = APIRouter()
 
@@ -31,18 +46,24 @@ verify_router = fastapi_users.get_verify_router(UserRead)
 users_router = fastapi_users.get_users_router(UserRead, UserUpdate)
 
 # Add rate limiting to auth routers (applied to all endpoints in each router)
-for route in auth_jwt_router.routes:
-    if hasattr(route, 'endpoint'):
-        # Apply stricter rate limits to login endpoints
-        route.endpoint = limiter.limit(RateLimits.AUTH_LOGIN)(route.endpoint)
+# Only apply if slowapi is available
+try:
+    if hasattr(limiter, '__class__') and 'MockLimiter' not in str(limiter.__class__):
+        for route in auth_jwt_router.routes:
+            if hasattr(route, 'endpoint'):
+                # Apply stricter rate limits to login endpoints
+                route.endpoint = limiter.limit(RateLimits.AUTH_LOGIN)(route.endpoint)
 
-for route in register_router.routes:
-    if hasattr(route, 'endpoint'):
-        route.endpoint = limiter.limit(RateLimits.AUTH_REGISTER)(route.endpoint)
+        for route in register_router.routes:
+            if hasattr(route, 'endpoint'):
+                route.endpoint = limiter.limit(RateLimits.AUTH_REGISTER)(route.endpoint)
 
-for route in reset_password_router.routes:
-    if hasattr(route, 'endpoint'):
-        route.endpoint = limiter.limit(RateLimits.AUTH_RESET_PASSWORD)(route.endpoint)
+        for route in reset_password_router.routes:
+            if hasattr(route, 'endpoint'):
+                route.endpoint = limiter.limit(RateLimits.AUTH_RESET_PASSWORD)(route.endpoint)
+except Exception:
+    # Skip rate limiting if not available
+    pass
 
 # Include the routers
 router.include_router(auth_jwt_router, prefix="/jwt", tags=["auth"])
