@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, CookieTransport
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
@@ -12,6 +12,7 @@ from backend.database.models import User
 from backend.database.database import get_session
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.config import settings
+from backend.middleware import limiter, RateLimits
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,11 @@ router.include_router(
 
 # Custom routes
 @router.get("/users/me", response_model=UserRead)
-async def read_current_user(user: User = Depends(fastapi_users.current_user(active=True))):
+@limiter.limit(RateLimits.API_READ)
+async def read_current_user(
+    request: Request,
+    user: User = Depends(fastapi_users.current_user(active=True))
+):
     return user
 
 # Export the router

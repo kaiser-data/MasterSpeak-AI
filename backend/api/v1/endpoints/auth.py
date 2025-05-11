@@ -1,0 +1,52 @@
+# backend/api/v1/endpoints/auth.py
+
+from fastapi import APIRouter, Depends, Request
+from backend.routes.auth_routes import fastapi_users, auth_backend
+from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
+from backend.database.models import User
+from backend.middleware import limiter, RateLimits
+
+router = APIRouter()
+
+# Get the current user (with rate limiting)
+@router.get("/me", response_model=UserRead, summary="Get Current User")
+@limiter.limit(RateLimits.API_READ)
+async def get_current_user(
+    request: Request,
+    user: User = Depends(fastapi_users.current_user(active=True))
+):
+    """
+    Get the currently authenticated user's information
+    
+    Returns:
+        UserRead: Current user's profile information
+    """
+    return user
+
+# Include FastAPIUsers authentication routes with rate limiting applied at router level
+auth_jwt_router = fastapi_users.get_auth_router(auth_backend)
+register_router = fastapi_users.get_register_router(UserRead, UserCreate)
+reset_password_router = fastapi_users.get_reset_password_router()
+verify_router = fastapi_users.get_verify_router(UserRead)
+users_router = fastapi_users.get_users_router(UserRead, UserUpdate)
+
+# Add rate limiting to auth routers (applied to all endpoints in each router)
+for route in auth_jwt_router.routes:
+    if hasattr(route, 'endpoint'):
+        # Apply stricter rate limits to login endpoints
+        route.endpoint = limiter.limit(RateLimits.AUTH_LOGIN)(route.endpoint)
+
+for route in register_router.routes:
+    if hasattr(route, 'endpoint'):
+        route.endpoint = limiter.limit(RateLimits.AUTH_REGISTER)(route.endpoint)
+
+for route in reset_password_router.routes:
+    if hasattr(route, 'endpoint'):
+        route.endpoint = limiter.limit(RateLimits.AUTH_RESET_PASSWORD)(route.endpoint)
+
+# Include the routers
+router.include_router(auth_jwt_router, prefix="/jwt", tags=["auth"])
+router.include_router(register_router, tags=["auth"])  
+router.include_router(reset_password_router, tags=["auth"])
+router.include_router(verify_router, tags=["auth"])
+router.include_router(users_router, prefix="/users", tags=["users"])

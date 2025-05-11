@@ -10,7 +10,18 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from datetime import datetime
 import time
+try:
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from backend.middleware import limiter, rate_limit_exceeded_handler, RateLimits
+    RATE_LIMITING_AVAILABLE = True
+except ImportError:
+    print("SlowAPI not available - rate limiting disabled")
+    RATE_LIMITING_AVAILABLE = False
+    limiter = None
+    RateLimits = None
 from backend.routes import all_routers
+from backend.api.v1 import api_router
 from backend.database.database import init_db, engine
 from backend.seed_db import seed_database
 from backend.config import settings
@@ -53,6 +64,11 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# Add rate limiting (if available)
+if RATE_LIMITING_AVAILABLE:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Configure CORS with secure settings
 allowed_origins = [
@@ -133,7 +149,7 @@ app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "frontend" / "stat
 
 # Health check endpoint
 @app.get("/health")
-async def health_check():
+async def health_check(request: Request):
     """Health check endpoint for monitoring and load balancers"""
     return JSONResponse({
         "status": "healthy",
@@ -145,7 +161,7 @@ async def health_check():
 
 # API status endpoint
 @app.get("/api/status")
-async def api_status():
+async def api_status(request: Request):
     """Detailed API status information"""
     try:
         # Test database connection
@@ -173,6 +189,9 @@ api_status.start_time = time.time()
 async def root():
     return RedirectResponse(url="/home")
 
-# Include all routers
+# Include API v1 router (RESTful JSON API)
+app.include_router(api_router, prefix="/api/v1")
+
+# Include legacy HTML routers (for backward compatibility)
 for router in all_routers:
     app.include_router(router)

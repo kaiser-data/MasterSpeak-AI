@@ -20,6 +20,7 @@ from backend.database.database import get_session
 from backend.utils import check_database_exists, serialize_user, serialize_speech
 from backend.schemas.analysis_schema import AnalysisResult, SpeechAnalysisCreate, AnalysisResponse
 from backend.schemas.speech_schema import SpeechRead
+from backend.middleware import limiter, RateLimits
 
 router = APIRouter(
     prefix="/analysis",
@@ -86,6 +87,7 @@ async def save_speech_and_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/text", response_class=HTMLResponse)
+@limiter.limit(RateLimits.ANALYSIS_TEXT)
 async def analyze_text_endpoint(
     request: Request,
     text: str = Form(...),
@@ -131,6 +133,7 @@ async def analyze_text_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload", response_class=HTMLResponse)
+@limiter.limit(RateLimits.ANALYSIS_UPLOAD)
 async def upload_and_analyze(
     request: Request,
     file: UploadFile = File(None),

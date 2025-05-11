@@ -5,13 +5,27 @@ from typing import Optional, Dict
 from uuid import UUID
 from datetime import datetime
 
-class AnalysisResponse(BaseModel):
+class OpenAIAnalysisResponse(BaseModel):
     """Schema to validate the direct JSON response from OpenAI."""
     clarity_score: int = Field(..., ge=1, le=10, description="Clarity rating (1-10)")
     structure_score: int = Field(..., ge=1, le=10, description="Structure rating (1-10)")
     filler_words_rating: int = Field(..., ge=1, le=10, description="Rating based on filler words (lower is better)") # Example: OpenAI might give a rating
     feedback: Optional[str] = Field(None, description="Brief qualitative feedback")
     # Add other fields if your prompt asks for them
+
+class AnalysisResponse(BaseModel):
+    """Schema for API v1 analysis response."""
+    speech_id: UUID = Field(..., description="ID of the analyzed speech")
+    analysis_id: UUID = Field(..., description="ID of the analysis record")
+    word_count: int = Field(..., description="Number of words in the speech")
+    clarity_score: int = Field(..., ge=1, le=10, description="Clarity rating (1-10)")
+    structure_score: int = Field(..., ge=1, le=10, description="Structure rating (1-10)")
+    filler_words_rating: int = Field(..., description="Filler words count or rating")
+    feedback: str = Field(..., description="AI-generated feedback")
+    created_at: datetime = Field(..., description="Analysis creation timestamp")
+    
+    class Config:
+        from_attributes = True  # Updated from orm_mode for Pydantic v2
 
 class AnalysisResult(BaseModel):
     """Schema for the analysis data returned by our API."""
@@ -28,7 +42,7 @@ class AnalysisResult(BaseModel):
     feedback: Optional[str] = None
 
     class Config:
-        orm_mode = True # For compatibility with SQLModel/SQLAlchemy objects
+        from_attributes = True  # Updated from orm_mode for Pydantic v2
 
 class SpeechAnalysisCreate(BaseModel):
     """Schema for creating a new analysis record internaly."""
