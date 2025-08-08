@@ -29,6 +29,16 @@ logger = logging.getLogger(__name__)
 # Import settings
 from backend.config import settings
 
+# Import Sentry for 429 tagging (if available)
+try:
+    import sentry_sdk
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+
+# Import structured logging
+from backend.logging import log_rate_limit_event, get_request_id
+
 # Redis client setup with graceful fallback
 redis_client: Optional[redis.Redis] = None
 if settings.REDIS_URL and settings.RATE_LIMIT_ENABLED and REDIS_AVAILABLE:
@@ -106,7 +116,56 @@ def rate_limit_exceeded_handler(request: Request, exc):
             reset_time += timedelta(minutes=1)
         reset_time_str = reset_time.isoformat() + "Z"
         
-        logger.warning(f"Rate limit exceeded for {client_ip}: {detail}")
+        # Enhanced logging with request ID and structured data
+        request_id = get_request_id()
+        logger.warning(
+            f"Rate limit exceeded for {client_ip}: {detail}",
+            extra={
+                'event_type': 'rate_limit_exceeded',
+                'client_ip': client_ip,
+                'endpoint': request.url.path,
+                'method': request.method,
+                'limit': limit_info,
+                'retry_after': retry_after,
+                'request_id': request_id,
+                'user_agent': request.headers.get('user-agent', 'unknown')
+            }
+        )
+        
+        # Log to structured rate limit logger
+        log_rate_limit_event(
+            client_ip=client_ip,
+            endpoint=request.url.path,
+            limit=limit_info,
+            retry_after=retry_after,
+            user_agent=request.headers.get('user-agent')
+        )
+        
+        # Tag with Sentry if available
+        if SENTRY_AVAILABLE and hasattr(settings, 'SENTRY_DSN') and settings.SENTRY_DSN:
+            with sentry_sdk.configure_scope() as scope:
+                scope.set_tag("event_type", "rate_limit_exceeded")
+                scope.set_tag("client_ip", client_ip)
+                scope.set_tag("endpoint", request.url.path)
+                scope.set_tag("rate_limit", limit_info)
+                scope.set_context("rate_limit", {
+                    "client_ip": client_ip,
+                    "endpoint": request.url.path,
+                    "method": request.method,
+                    "limit": limit_info,
+                    "retry_after": retry_after,
+                    "user_agent": request.headers.get('user-agent'),
+                    "request_id": request_id
+                })
+                sentry_sdk.add_breadcrumb(
+                    message=f"Rate limit exceeded: {client_ip} on {request.url.path}",
+                    category="rate_limiting",
+                    level="warning",
+                    data={
+                        "limit": limit_info,
+                        "retry_after": retry_after
+                    }
+                )
         
         return JSONResponse(
             status_code=429,
@@ -118,7 +177,8 @@ def rate_limit_exceeded_handler(request: Request, exc):
                 "limit": limit_info,
                 "remaining": 0,
                 "reset_time": reset_time_str,
-                "client_ip": client_ip
+                "client_ip": client_ip,
+                "request_id": request_id
             },
             headers={
                 "Retry-After": str(retry_after),
@@ -129,14 +189,17 @@ def rate_limit_exceeded_handler(request: Request, exc):
         )
     else:
         # Fallback handler when slowapi is not available or rate limiting is disabled
-        logger.warning(f"Rate limit fallback triggered for {client_ip}")
+        request_id = get_request_id()
+        logger.warning(f"Rate limit fallback triggered for {client_ip}",
+                      extra={'request_id': request_id, 'client_ip': client_ip})
         return JSONResponse(
             status_code=429,
             content={
                 "error": "Rate limit exceeded",
                 "detail": "Too many requests",
                 "timestamp": timestamp,
-                "client_ip": client_ip
+                "client_ip": client_ip,
+                "request_id": request_id
             },
             headers={"Retry-After": "60"}
         )

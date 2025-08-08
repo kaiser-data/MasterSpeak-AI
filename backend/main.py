@@ -33,9 +33,10 @@ from pathlib import Path
 import logging
 import asyncio
 from contextlib import asynccontextmanager
+from backend.logging import setup_logging, generate_request_id, set_request_id, log_performance_event
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Setup structured logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -91,19 +92,63 @@ app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1", "*.localhost"] if settings.ENV == "development" else ["yourdomain.com"]
 )
 
-# Request logging middleware
+# Request logging and tracing middleware
 @app.middleware("http")
-async def logging_middleware(request: Request, call_next):
-    start_time = time.time()
+async def request_middleware(request: Request, call_next):
+    # Generate and set request ID
+    request_id = generate_request_id()
+    set_request_id(request_id)
     
-    # Log request
-    logger.info(f"Request: {request.method} {request.url.path}")
+    # Add request ID to request state for access in handlers
+    request.state.request_id = request_id
+    
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Log request with structured data
+    logger.info(
+        f"Request: {request.method} {request.url.path}",
+        extra={
+            'event_type': 'request_start',
+            'method': request.method,
+            'path': request.url.path,
+            'client_ip': client_ip,
+            'user_agent': request.headers.get('user-agent', 'unknown'),
+            'request_id': request_id
+        }
+    )
     
     response = await call_next(request)
     
-    # Log response
+    # Calculate response time
     process_time = time.time() - start_time
-    logger.info(f"Response: {response.status_code} - {process_time:.3f}s")
+    process_time_ms = process_time * 1000
+    
+    # Log response with structured data  
+    logger.info(
+        f"Response: {response.status_code} - {process_time_ms:.2f}ms",
+        extra={
+            'event_type': 'request_complete',
+            'method': request.method,
+            'path': request.url.path,
+            'status_code': response.status_code,
+            'response_time_ms': process_time_ms,
+            'client_ip': client_ip,
+            'request_id': request_id
+        }
+    )
+    
+    # Log performance metrics for slow requests
+    if process_time_ms > 500:  # Slow request threshold
+        log_performance_event(
+            endpoint=request.url.path,
+            response_time_ms=process_time_ms,
+            status_code=response.status_code,
+            method=request.method
+        )
+    
+    # Add request ID to response headers for debugging
+    response.headers["X-Request-ID"] = request_id
     
     return response
 
