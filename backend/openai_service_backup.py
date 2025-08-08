@@ -27,9 +27,9 @@ async def analyze_text_with_gpt_simple(text: str, prompt_type: str = "default") 
         
         logger.info(f"Sending simple request to OpenAI (prompt type: {prompt_type})...")
         
-        # Try without JSON format requirement first
+        # Try with basic model and no special formatting
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-3.5-turbo-0125",  # Specific stable version
             messages=[
                 {"role": "system", "content": "You are an expert speech analyst. Respond with valid JSON containing exactly these fields: clarity_score (1-10), structure_score (1-10), filler_words_rating (1-10), feedback (string)."},
                 {"role": "user", "content": prompt},
@@ -72,7 +72,8 @@ async def analyze_text_with_gpt_simple(text: str, prompt_type: str = "default") 
     
     except BadRequestError as e:
         logger.error(f"OpenAI Bad Request Error: {e}")
-        raise HTTPException(status_code=500, detail="Analysis request format error")
+        logger.error(f"Error details: {e.response.text if hasattr(e, 'response') else 'No response details'}")
+        raise HTTPException(status_code=500, detail=f"OpenAI BadRequest: {str(e)}")
     
     except RateLimitError as e:
         logger.error(f"OpenAI Rate Limit Error: {e}")

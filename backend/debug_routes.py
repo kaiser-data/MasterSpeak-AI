@@ -25,9 +25,9 @@ async def test_openai():
         masked_key = f"{settings.OPENAI_API_KEY[:8]}..." if len(settings.OPENAI_API_KEY) > 8 else "***"
         logger.info(f"Testing OpenAI with key: {masked_key}")
         
-        # Test basic OpenAI connectivity
+        # Test basic OpenAI connectivity with specific model version
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo-0125",
             messages=[
                 {"role": "user", "content": "Say 'API connection successful'"}
             ],
