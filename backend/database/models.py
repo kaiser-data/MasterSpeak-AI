@@ -29,7 +29,7 @@ class User(SQLModel, table=True):
     full_name: Optional[str] = None
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
-    is_verified: Optional[bool] = Field(default=False)  # Required by FastAPIUsers
+    # is_verified: Optional[bool] = Field(default=False)  # TODO: Add after proper migration
 
     # Relationships
     speeches: List["Speech"] = Relationship(back_populates="user")
