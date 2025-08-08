@@ -59,11 +59,6 @@ class Settings(BaseSettings):
     RATE_LIMIT_UPLOAD: str = "5/minute"
     RATE_LIMIT_HEALTH: str = "100/minute"
     
-    # Static files and templates configuration
-    SERVE_STATIC: bool = False
-    STATIC_DIR: Optional[str] = None
-    SERVE_TEMPLATES: bool = False
-    TEMPLATES_DIR: Optional[str] = None
 
     # Optional: Configure BaseSettings to read from .env
     class Config:
