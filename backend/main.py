@@ -1,8 +1,6 @@
 # main.py
 
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -187,27 +185,8 @@ app.add_middleware(
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 
-# Get the project root directory
-PROJECT_ROOT = Path(__file__).parent.parent
-
-# Configure templates (conditional)
-templates = None
-templates_dir = Path(settings.TEMPLATES_DIR) if settings.TEMPLATES_DIR else (PROJECT_ROOT / "frontend" / "templates")
-if settings.SERVE_TEMPLATES and templates_dir.exists():
-    templates = Jinja2Templates(directory=str(templates_dir))
-    logger.info("Templates mounted from: %s", templates_dir)
-else:
-    logger.info("Templates not mounted (SERVE_TEMPLATES=%s, path=%s, exists=%s)",
-                getattr(settings, "SERVE_TEMPLATES", False), templates_dir, templates_dir.exists())
-
-# Mount static files directory (conditional)
-static_dir = Path(settings.STATIC_DIR) if settings.STATIC_DIR else (PROJECT_ROOT / "frontend" / "static")
-if settings.SERVE_STATIC and static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-    logger.info("Static files mounted from: %s", static_dir)
-else:
-    logger.info("Static directory not mounted (SERVE_STATIC=%s, path=%s, exists=%s)",
-                getattr(settings, "SERVE_STATIC", False), static_dir, static_dir.exists())
+# API-only mode: no static files or templates
+logger.info("Running in API-only mode - no static files or templates")
 
 # Health check endpoint
 @app.get("/health")
