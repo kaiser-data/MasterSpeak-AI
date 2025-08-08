@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Upload, 
-  File, 
+  File as FileIcon, 
   FileText, 
   Music, 
   X, 
@@ -233,7 +233,7 @@ export default function SpeechAnalysisUpload({ userId, onAnalysisComplete }: Spe
   const getFileIcon = (file: File) => {
     if (file.type.startsWith('audio/')) return Music
     if (file.type === 'application/pdf') return FileText
-    return File
+    return FileIcon
   }
 
   const formatDuration = (ms: number) => {
