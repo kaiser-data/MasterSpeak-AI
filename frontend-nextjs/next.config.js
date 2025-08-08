@@ -1,10 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActions: true,
-  },
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'vercel.app', 'vercel.com'],
   },
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
