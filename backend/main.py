@@ -190,11 +190,24 @@ app.add_middleware(
 # Get the project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Configure templates
-templates = Jinja2Templates(directory=str(PROJECT_ROOT / "frontend" / "templates"))
+# Configure templates (conditional)
+templates = None
+templates_dir = Path(settings.TEMPLATES_DIR) if settings.TEMPLATES_DIR else (PROJECT_ROOT / "frontend" / "templates")
+if settings.SERVE_TEMPLATES and templates_dir.exists():
+    templates = Jinja2Templates(directory=str(templates_dir))
+    logger.info("Templates mounted from: %s", templates_dir)
+else:
+    logger.info("Templates not mounted (SERVE_TEMPLATES=%s, path=%s, exists=%s)",
+                getattr(settings, "SERVE_TEMPLATES", False), templates_dir, templates_dir.exists())
 
-# Mount static files directory
-app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "frontend" / "static")), name="static")
+# Mount static files directory (conditional)
+static_dir = Path(settings.STATIC_DIR) if settings.STATIC_DIR else (PROJECT_ROOT / "frontend" / "static")
+if settings.SERVE_STATIC and static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    logger.info("Static files mounted from: %s", static_dir)
+else:
+    logger.info("Static directory not mounted (SERVE_STATIC=%s, path=%s, exists=%s)",
+                getattr(settings, "SERVE_STATIC", False), static_dir, static_dir.exists())
 
 # Health check endpoint
 @app.get("/health")

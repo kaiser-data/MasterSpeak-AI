@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+from typing import Optional
 
 # Get the project root directory (parent of backend directory)
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
@@ -57,6 +58,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_ANALYSIS: str = "10/minute"
     RATE_LIMIT_UPLOAD: str = "5/minute"
     RATE_LIMIT_HEALTH: str = "100/minute"
+    
+    # Static files and templates configuration
+    SERVE_STATIC: bool = False
+    STATIC_DIR: Optional[str] = None
+    SERVE_TEMPLATES: bool = False
+    TEMPLATES_DIR: Optional[str] = None
 
     # Optional: Configure BaseSettings to read from .env
     class Config:

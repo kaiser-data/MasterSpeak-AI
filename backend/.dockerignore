@@ -6,3 +6,5 @@ __pycache__/
 .DS_Store
 tests/
 e2e/
+../frontend/
+../frontend-nextjs/
