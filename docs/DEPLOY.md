@@ -44,6 +44,8 @@ LOG_LEVEL="WARNING"
 
 ## 🛤️ Railway Deployment
 
+Railway uses Docker from `/backend` directory. Frontend is deployed on Vercel.
+
 ### **1. Setup Railway Project**
 ```bash
 # Install Railway CLI
