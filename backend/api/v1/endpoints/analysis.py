@@ -11,7 +11,28 @@ from typing import Optional, List
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
 from backend.database.database import get_session
 from backend.openai_service import analyze_text_with_gpt
-from backend.middleware import limiter, RateLimits
+try:
+    from backend.middleware.rate_limiting import limiter, RateLimits, create_rate_limit_decorator
+    RATE_LIMITING_AVAILABLE = True
+except ImportError:
+    RATE_LIMITING_AVAILABLE = False
+    # Mock limiter and decorator for when rate limiting is not available
+    def create_rate_limit_decorator(limit: str):
+        def decorator(func):
+            return func
+        return decorator
+    
+    class MockLimiter:
+        def limit(self, limit_string):
+            return create_rate_limit_decorator(limit_string)
+    limiter = MockLimiter()
+    
+    # Mock RateLimits class
+    RateLimits = type('RateLimits', (), {
+        'API_READ': '30/minute',
+        'ANALYSIS_TEXT': '10/minute',
+        'ANALYSIS_UPLOAD': '5/minute'
+    })()
 from backend.schemas.analysis_schema import AnalysisResult, AnalysisResponse
 from backend.schemas.speech_schema import SpeechRead
 import logging
@@ -20,7 +41,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
-@limiter.limit(RateLimits.ANALYSIS_TEXT)
+@create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
     request: Request,
     text: str = Form(..., description="Text content to analyze"),
@@ -98,7 +119,7 @@ async def analyze_text(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload", response_model=AnalysisResponse, summary="Upload and Analyze File")
-@limiter.limit(RateLimits.ANALYSIS_UPLOAD)
+@create_rate_limit_decorator(RateLimits.ANALYSIS_UPLOAD)
 async def upload_and_analyze(
     request: Request,
     file: UploadFile = File(..., description="Text file to upload and analyze"),
@@ -147,7 +168,7 @@ async def upload_and_analyze(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/results/{speech_id}", response_model=AnalysisResponse, summary="Get Analysis Results")
-@limiter.limit(RateLimits.API_READ)
+@create_rate_limit_decorator(RateLimits.API_READ)
 async def get_analysis_results(
     request: Request,
     speech_id: UUID,
@@ -195,7 +216,7 @@ async def get_analysis_results(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/user/{user_id}", response_model=List[AnalysisResponse], summary="Get User's Analyses")
-@limiter.limit(RateLimits.API_READ)
+@create_rate_limit_decorator(RateLimits.API_READ)
 async def get_user_analyses(
     request: Request,
     user_id: UUID,

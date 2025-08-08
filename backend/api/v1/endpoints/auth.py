@@ -5,15 +5,22 @@ from backend.routes.auth_routes import fastapi_users, auth_backend
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.database.models import User
 try:
-    from backend.middleware import limiter, RateLimits
+    from backend.middleware.rate_limiting import limiter, RateLimits, create_rate_limit_decorator
+    RATE_LIMITING_AVAILABLE = True
 except ImportError:
-    # Mock limiter for when slowapi is not available
+    RATE_LIMITING_AVAILABLE = False
+    # Mock limiter and decorator for when rate limiting is not available
+    def create_rate_limit_decorator(limit: str):
+        def decorator(func):
+            return func
+        return decorator
+    
     class MockLimiter:
         def limit(self, limit_string):
-            def decorator(func):
-                return func
-            return decorator
+            return create_rate_limit_decorator(limit_string)
     limiter = MockLimiter()
+    
+    # Mock RateLimits class
     RateLimits = type('RateLimits', (), {
         'API_READ': '30/minute',
         'AUTH_LOGIN': '5/minute',
@@ -25,7 +32,7 @@ router = APIRouter()
 
 # Get the current user (with rate limiting)
 @router.get("/me", response_model=UserRead, summary="Get Current User")
-@limiter.limit(RateLimits.API_READ)
+@create_rate_limit_decorator(RateLimits.API_READ)
 async def get_current_user(
     request: Request,
     user: User = Depends(fastapi_users.current_user(active=True))

@@ -45,6 +45,18 @@ class Settings(BaseSettings):
     
     # Application settings
     DEBUG: bool = False
+    
+    # Rate limiting settings
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: str = "60/minute"
+    RATE_LIMIT_BURST: str = ""  # Optional burst handling
+    REDIS_URL: str = ""  # Optional Redis backend for rate limiting
+    
+    # Rate limit per-endpoint overrides
+    RATE_LIMIT_AUTH: str = "5/minute"
+    RATE_LIMIT_ANALYSIS: str = "10/minute"
+    RATE_LIMIT_UPLOAD: str = "5/minute"
+    RATE_LIMIT_HEALTH: str = "100/minute"
 
     # Optional: Configure BaseSettings to read from .env
     class Config:
