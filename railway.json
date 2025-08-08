@@ -5,12 +5,8 @@
     "dockerfilePath": "backend/Dockerfile.railway"
   },
   "deploy": {
-    "restartPolicyType": "on-failure",
-    "restartPolicyMaxRetries": 3,
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 100,
-    "sleepApplication": false,
-    "cronSchedule": null
+    "healthcheckTimeout": 100
   },
   "environments": {
     "production": {
