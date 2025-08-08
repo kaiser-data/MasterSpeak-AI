@@ -1,33 +1,13 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
+  "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "dockerfile",
-    "dockerfilePath": "backend/Dockerfile"
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "backend/Dockerfile",
+    "watchPatterns": ["backend/**"]
   },
   "deploy": {
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 100
-  },
-  "environments": {
-    "production": {
-      "variables": {
-        "ENV": "production",
-        "DEBUG": "false",
-        "RATE_LIMIT_ENABLED": "true",
-        "RATE_LIMIT_DEFAULT": "60/minute",
-        "RATE_LIMIT_AUTH": "5/minute",
-        "RATE_LIMIT_ANALYSIS": "10/minute",
-        "RATE_LIMIT_UPLOAD": "5/minute",
-        "RATE_LIMIT_HEALTH": "100/minute"
-      }
-    },
-    "staging": {
-      "variables": {
-        "ENV": "staging",
-        "DEBUG": "false",
-        "RATE_LIMIT_ENABLED": "false",
-        "RATE_LIMIT_DEFAULT": "200/minute"
-      }
-    }
+    "healthcheckTimeout": 180,
+    "restartPolicyType": "ALWAYS"
   }
 }
