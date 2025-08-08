@@ -1,5 +1,6 @@
 # backend/config.py
 
+import re
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 import os
@@ -48,6 +49,7 @@ class Settings(BaseSettings):
     
     # Application settings
     DEBUG: bool = False
+    DEBUG_CORS: bool = True  # Enable CORS debug header injection (temporary for debugging)
     
     # Rate limiting settings
     RATE_LIMIT_ENABLED: bool = True

@@ -4,6 +4,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.datastructures import Headers
+import re
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from datetime import datetime
@@ -98,13 +100,7 @@ if RATE_LIMITING_AVAILABLE and rate_limit_exceeded_handler:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-# Add security middleware first
-app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=settings.trusted_hosts
-)
-
-# Add CORS middleware second (before other middleware and routers)
+# CORS MUST BE OUTERMOST so it can attach headers even when inner middleware/handlers error
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -115,6 +111,7 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=600,
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
 
 logger.info(f"Environment: {settings.ENV}")
 logger.info(f"Trusted hosts: {settings.trusted_hosts}")
@@ -128,6 +125,38 @@ logger.info(f"  - Regex pattern: {settings.ALLOWED_ORIGIN_REGEX}")
 logger.info(f"  - Allow credentials: False")
 logger.info(f"  - Allow methods: *")
 logger.info(f"  - Allow headers: *")
+
+# Log incoming Origin for CORS debugging
+@app.middleware("http")
+async def _log_origin(request: Request, call_next):
+    origin = request.headers.get("origin")
+    logger.info("REQ %s %s Origin=%s", request.method, request.url.path, origin)
+    resp = await call_next(request)
+    return resp
+
+# TEMP fallback CORS header patch (only when DEBUG_CORS is enabled)
+@app.middleware("http")
+async def _ensure_cors_header(request: Request, call_next):
+    resp = await call_next(request)
+    try:
+        if getattr(settings, "DEBUG", False) or getattr(settings, "DEBUG_CORS", False):
+            origin = request.headers.get("origin")
+            has_header = any(h.lower() == "access-control-allow-origin" for h, _ in resp.raw_headers)
+            # Check if origin is explicitly allowed or matches regex
+            allowed = origin and (
+                origin in settings.allowed_origins
+                or (
+                    settings.ALLOWED_ORIGIN_REGEX
+                    and re.match(settings.ALLOWED_ORIGIN_REGEX, origin)
+                )
+            )
+            if allowed and not has_header:
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                logger.info("Injected CORS header for Origin=%s on %s", origin, request.url.path)
+    except Exception as e:
+        logger.warning("CORS fallback patch skipped due to error: %s", e)
+    return resp
 
 # Request logging and tracing middleware
 @app.middleware("http")
@@ -208,12 +237,24 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc.errors()}")
+    logger.exception(f"Validation error on {request.url.path}: {exc.errors()}")
     return JSONResponse(
         status_code=422,
         content={
             "error": "Validation error",
             "details": exc.errors(),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+# Add generic exception handler for 500 errors to log stack traces
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled error on {request.url.path}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
             "timestamp": datetime.utcnow().isoformat()
         }
     )
