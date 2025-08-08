@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=testing
+      - DATABASE_URL=sqlite:///./test_data/masterspeak_test.db
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=test-secret-key-for-e2e-testing-only
+      - RESET_SECRET=test-reset-secret-for-e2e-testing-only
+      - VERIFICATION_SECRET=test-verification-secret-for-e2e-testing-only
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000
+      - JWT_LIFETIME_SECONDS=3600
+      - DEBUG=false
+    volumes:
+      - ./test_data:/app/test_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - masterspeak-network
+
+  frontend:
+    build:
+      context: ./frontend-nextjs
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=development
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - masterspeak-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - masterspeak-network
+
+  e2e-tests:
+    build:
+      context: ./e2e
+      dockerfile: Dockerfile
+    volumes:
+      - ./e2e:/app
+      - ./e2e/test-results:/app/test-results
+      - ./e2e/playwright-report:/app/playwright-report
+    environment:
+      - CI=true
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - masterspeak-network
+    command: ["npx", "playwright", "test", "--reporter=html,json"]
+
+volumes:
+  redis_data:
+
+networks:
+  masterspeak-network:
+    driver: bridge
