@@ -33,7 +33,7 @@ from pathlib import Path
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-from backend.logging import setup_logging, generate_request_id, set_request_id, log_performance_event
+from backend.logging_config import setup_logging, generate_request_id, set_request_id, log_performance_event
 
 # Setup structured logging
 setup_logging()

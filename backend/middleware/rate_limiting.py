@@ -37,7 +37,7 @@ except ImportError:
     SENTRY_AVAILABLE = False
 
 # Import structured logging
-from backend.logging import log_rate_limit_event, get_request_id
+from backend.logging_config import log_rate_limit_event, get_request_id
 
 # Redis client setup with graceful fallback
 redis_client: Optional[redis.Redis] = None
