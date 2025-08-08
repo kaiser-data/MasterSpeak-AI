@@ -1,10 +1,11 @@
 # routes/__init__.py
 
-# Legacy routes - removed for API-only mode
-# Only auth_routes and analyze_routes have some API functionality left
+# API-only mode - legacy HTML routes removed
 
 from .auth_routes import router as auth_router
+from .analyze_routes import router as analyze_router
 
 all_routers = [
     auth_router,
+    analyze_router,
 ]

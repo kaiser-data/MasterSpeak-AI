@@ -1,339 +1,187 @@
-# backend/routes/analyze_routes.py
+# analyze_routes.py
 
-from fastapi import APIRouter, Request, Form, File, UploadFile, Depends, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from sqlmodel import select
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
-import uuid
-import logging
-from typing import Optional
-from uuid import UUID
+from sqlalchemy import select
+from uuid import uuid4
 import os
-from pathlib import Path
+import logging
+from datetime import datetime
 
-# Local imports
-from backend.openai_service import analyze_text_with_gpt
-from backend.database.models import User, Speech, SpeechAnalysis, SourceType
-from backend.database.database import get_session
-from backend.utils import check_database_exists, serialize_user, serialize_speech
-from backend.schemas.analysis_schema import AnalysisResult, SpeechAnalysisCreate, AnalysisResponse
-from backend.schemas.speech_schema import SpeechRead
-from backend.middleware import limiter, RateLimits
+from backend.database.database import get_db
+from backend.database.models import Speech, SpeechAnalysis, User
+from backend.openai_service import OpenAIService
+from backend.prompts import ANALYSIS_PROMPT_TEMPLATE
 
-router = APIRouter(
-    prefix="/analysis",
-    tags=["Analysis"]
-)
+# Configure logging
 logger = logging.getLogger(__name__)
 
-# Configure templates
-templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "templates")
-templates = Jinja2Templates(directory=templates_dir)
+# Create a router for analyze-related routes
+router = APIRouter()
 
+# Initialize OpenAI service
+openai_service = OpenAIService()
 
-# --- Helper Function ---
-async def save_speech_and_analysis(
-    session: AsyncSession,
-    user_id: UUID,
-    content: str,
-    source_type: SourceType,
-    prompt_type: str = "default"
-) -> SpeechAnalysis:
-    """
-    Saves Speech, performs analysis via OpenAI, saves Analysis, and returns the analysis record.
-    """
-    try:
-        # 1. Calculate basic metrics locally
-        word_count = len(content.split())
-        # Add more metrics as needed
+# API endpoints only - no HTML/template endpoints
+# All HTML endpoints have been removed for API-only mode
 
-        # 2. Create and save Speech record
-        speech = Speech(
-            user_id=user_id,
-            title=f"Analysis {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            content=content,
-            source_type=source_type,
-            created_at=datetime.utcnow()
-        )
-        session.add(speech)
-        await session.commit()
-        await session.refresh(speech)
-
-        # 3. Get analysis from OpenAI
-        analysis_result = await analyze_text_with_gpt(content, prompt_type)
-
-        # 4. Create and save Analysis record
-        analysis = SpeechAnalysis(
-            speech_id=speech.id,
-            word_count=word_count,
-            clarity_score=analysis_result.clarity_score,
-            structure_score=analysis_result.structure_score,
-            filler_word_count=analysis_result.filler_words_rating,
-            prompt=prompt_type,
-            feedback=analysis_result.feedback,
-            created_at=datetime.utcnow()
-        )
-        session.add(analysis)
-        await session.commit()
-        await session.refresh(analysis)
-
-        return analysis
-
-    except Exception as e:
-        logger.error(f"Error in save_speech_and_analysis: {str(e)}")
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/text", response_class=HTMLResponse)
-@limiter.limit(RateLimits.ANALYSIS_TEXT)
-async def analyze_text_endpoint(
-    request: Request,
+@router.post("/api/analyze/text")
+async def analyze_text_api(
     text: str = Form(...),
-    user_id: str = Form(...),
-    prompt_type: str = Form("default"),
-    session: AsyncSession = Depends(get_session)
+    title: str = Form(None),
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Analyze text input and return results.
-    """
+    """API endpoint for text analysis."""
     try:
-        # Convert user_id to UUID
-        try:
-            user_uuid = UUID(user_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid user ID format")
-
-        # Verify user exists
-        result = await session.execute(select(User).where(User.id == user_uuid))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Save and analyze
-        analysis = await save_speech_and_analysis(
-            session=session,
-            user_id=user_uuid,
+        # Create speech record
+        speech_id = uuid4()
+        speech = Speech(
+            id=speech_id,
+            user_id=None,  # Anonymous for now
+            title=title or f"Text Analysis {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            source_type="text",
             content=text,
-            source_type=SourceType.TEXT,
-            prompt_type=prompt_type
+            created_at=datetime.utcnow()
         )
-
-        # Redirect to the analysis results page
-        return RedirectResponse(
-            url=f"/analysis/results/{analysis.speech_id}",
-            status_code=303
+        
+        # Perform analysis
+        analysis_result = await openai_service.analyze_speech(text, ANALYSIS_PROMPT_TEMPLATE)
+        
+        # Create analysis record
+        analysis = SpeechAnalysis(
+            id=uuid4(),
+            speech_id=speech_id,
+            word_count=len(text.split()),
+            clarity_score=analysis_result.get("clarity_score", 0),
+            structure_score=analysis_result.get("structure_score", 0),
+            filler_word_count=analysis_result.get("filler_word_count", 0),
+            prompt=ANALYSIS_PROMPT_TEMPLATE,
+            feedback=analysis_result.get("feedback", ""),
+            created_at=datetime.utcnow()
         )
-
-    except HTTPException:
-        raise
+        
+        speech.analysis = analysis
+        
+        # Save to database
+        db.add(speech)
+        db.add(analysis)
+        await db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "speech_id": str(speech_id),
+            "analysis": analysis_result
+        })
+        
     except Exception as e:
-        logger.error(f"Error in analyze_text_endpoint: {str(e)}")
+        logger.error(f"Error analyzing text: {e}")
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/upload", response_class=HTMLResponse)
-@limiter.limit(RateLimits.ANALYSIS_UPLOAD)
-async def upload_and_analyze(
-    request: Request,
-    file: UploadFile = File(None),
-    text_content: str = Form(None),
-    user_id: str = Form(...),
-    prompt_type: str = Form("default"),
-    session: AsyncSession = Depends(get_session)
+@router.post("/api/analyze/upload")
+async def analyze_upload_api(
+    file: UploadFile = File(...),
+    title: str = Form(None),
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Upload and analyze a file or text content.
-    """
+    """API endpoint for file upload analysis."""
     try:
-        # Convert user_id to UUID
-        try:
-            user_uuid = UUID(user_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid user ID format")
-
-        # Verify user exists
-        result = await session.execute(select(User).where(User.id == user_uuid))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Get content from either file or text input
-        content = None
-        if file:
-            content = await file.read()
-            content = content.decode("utf-8")
-        elif text_content:
-            content = text_content
-        else:
-            raise HTTPException(status_code=400, detail="Either file or text content must be provided")
-
-        # Save and analyze
-        analysis = await save_speech_and_analysis(
-            session=session,
-            user_id=user_uuid,
-            content=content,
-            source_type=SourceType.TEXT,
-            prompt_type=prompt_type
+        # Read file content
+        content = await file.read()
+        text = content.decode('utf-8')
+        
+        # Create speech record
+        speech_id = uuid4()
+        speech = Speech(
+            id=speech_id,
+            user_id=None,  # Anonymous for now
+            title=title or file.filename or f"Upload Analysis {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            source_type="upload",
+            content=text,
+            created_at=datetime.utcnow()
         )
-
-        # Redirect to the analysis results page
-        return RedirectResponse(
-            url=f"/analysis/results/{analysis.speech_id}",
-            status_code=303
+        
+        # Perform analysis
+        analysis_result = await openai_service.analyze_speech(text, ANALYSIS_PROMPT_TEMPLATE)
+        
+        # Create analysis record
+        analysis = SpeechAnalysis(
+            id=uuid4(),
+            speech_id=speech_id,
+            word_count=len(text.split()),
+            clarity_score=analysis_result.get("clarity_score", 0),
+            structure_score=analysis_result.get("structure_score", 0),
+            filler_word_count=analysis_result.get("filler_word_count", 0),
+            prompt=ANALYSIS_PROMPT_TEMPLATE,
+            feedback=analysis_result.get("feedback", ""),
+            created_at=datetime.utcnow()
         )
-
-    except HTTPException:
-        raise
+        
+        speech.analysis = analysis
+        
+        # Save to database
+        db.add(speech)
+        db.add(analysis)
+        await db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "speech_id": str(speech_id),
+            "analysis": analysis_result
+        })
+        
     except Exception as e:
-        logger.error(f"Error in upload_and_analyze: {str(e)}")
+        logger.error(f"Error analyzing upload: {e}")
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/text", response_class=HTMLResponse)
-async def get_analyze_text_page(
-    request: Request, 
-    session: AsyncSession = Depends(get_session),
-    user_id: Optional[str] = None
-):
-    """
-    Serve the analyze text page with user selection.
-    """
-    try:
-        if not check_database_exists():
-            raise HTTPException(
-                status_code=500,
-                detail="Database file not found. Please ensure the application is properly initialized."
-            )
-        
-        # Get all users
-        result = await session.execute(select(User))
-        users = result.scalars().all()
-        if not users:
-            logger.warning("No users found in database")
-            return templates.TemplateResponse(
-                "analyze_text.html",
-                {"request": request, "users": [], "error": "No users found in database"}
-            )
-        
-        # Convert users to list of dicts for template
-        users_data = [
-            {
-                "id": str(user.id),
-                "email": user.email,
-                "full_name": user.full_name,
-                "selected": str(user.id) == user_id if user_id else False
-            }
-            for user in users
-        ]
-        
-        return templates.TemplateResponse(
-            "analyze_text.html",
-            {"request": request, "users": users_data, "selected_user_id": user_id}
-        )
-    except OperationalError as e:
-        logger.error(f"Database error: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database error occurred. Please ensure the database is properly configured."
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred")
-
-@router.get("/upload", response_class=HTMLResponse)
-async def get_upload_page(
-    request: Request, 
-    session: AsyncSession = Depends(get_session),
-    user_id: Optional[str] = None
-):
-    """
-    Serve the upload page with user selection.
-    """
-    try:
-        if not check_database_exists():
-            raise HTTPException(
-                status_code=500,
-                detail="Database file not found. Please ensure the application is properly initialized."
-            )
-        
-        # Get all users
-        result = await session.execute(select(User))
-        users = result.scalars().all()
-        if not users:
-            logger.warning("No users found in database")
-            return templates.TemplateResponse(
-                "upload_analysis.html",
-                {"request": request, "users": [], "error": "No users found in database"}
-            )
-        
-        # Convert users to list of dicts for template
-        users_data = [
-            {
-                "id": str(user.id),
-                "email": user.email,
-                "full_name": user.full_name,
-                "selected": str(user.id) == user_id if user_id else False
-            }
-            for user in users
-        ]
-        
-        return templates.TemplateResponse(
-            "upload_analysis.html",
-            {"request": request, "users": users_data, "selected_user_id": user_id}
-        )
-    except OperationalError as e:
-        logger.error(f"Database error: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database error occurred. Please ensure the database is properly configured."
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred")
-
-@router.get("/results/{speech_id}", response_class=HTMLResponse)
-async def get_analysis_results(
-    request: Request,
+@router.get("/api/analyze/{speech_id}")
+async def get_analysis_api(
     speech_id: str,
-    session: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Display the analysis results for a specific speech.
-    """
+    """API endpoint to get analysis results."""
     try:
-        # Convert speech_id to UUID
-        try:
-            speech_uuid = UUID(speech_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid speech ID format")
-
-        # Get the speech and its analysis
-        # Get speech
-        speech_result = await session.execute(select(Speech).where(Speech.id == speech_uuid))
-        speech = speech_result.scalar_one_or_none()
+        # Query speech and analysis
+        result = await db.execute(
+            select(Speech).where(Speech.id == speech_id)
+        )
+        speech = result.scalar_one_or_none()
+        
         if not speech:
             raise HTTPException(status_code=404, detail="Speech not found")
-
+        
         # Get analysis
-        analysis_result = await session.execute(select(SpeechAnalysis).where(SpeechAnalysis.speech_id == speech_uuid))
-        analysis = analysis_result.scalar_one_or_none()
+        result = await db.execute(
+            select(SpeechAnalysis).where(SpeechAnalysis.speech_id == speech_id)
+        )
+        analysis = result.scalar_one_or_none()
+        
         if not analysis:
             raise HTTPException(status_code=404, detail="Analysis not found")
-
-        return templates.TemplateResponse(
-            "analysis_results.html",
-            {
-                "request": request,
-                "speech": speech,
-                "analysis": analysis
+        
+        return JSONResponse(content={
+            "success": True,
+            "speech": {
+                "id": str(speech.id),
+                "title": speech.title,
+                "content": speech.content,
+                "source_type": speech.source_type,
+                "created_at": speech.created_at.isoformat()
+            },
+            "analysis": {
+                "word_count": analysis.word_count,
+                "clarity_score": analysis.clarity_score,
+                "structure_score": analysis.structure_score,
+                "filler_word_count": analysis.filler_word_count,
+                "feedback": analysis.feedback,
+                "created_at": analysis.created_at.isoformat()
             }
-        )
-
+        })
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in get_analysis_results: {str(e)}")
+        logger.error(f"Error getting analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# Add endpoints to GET analysis results, maybe GET /speeches/{speech_id}/analysis
-# Ensure these GET endpoints also use authentication and check ownership
