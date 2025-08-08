@@ -30,6 +30,14 @@ jobs:
         ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000
         JWT_LIFETIME_SECONDS=3600
         DEBUG=false
+        # Rate limiting configuration for CI E2E testing
+        RATE_LIMIT_ENABLED=true
+        RATE_LIMIT_DEFAULT=50/minute
+        RATE_LIMIT_AUTH=8/minute
+        RATE_LIMIT_ANALYSIS=15/minute
+        RATE_LIMIT_UPLOAD=10/minute
+        RATE_LIMIT_HEALTH=200/minute
+        REDIS_URL=redis://redis:6379/0
         EOF
 
     - name: Start services
