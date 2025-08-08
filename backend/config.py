@@ -25,7 +25,7 @@ if os.getenv('ENV', 'development') == 'development':
 class Settings(BaseSettings):
     """Manages application settings loaded from environment variables."""
     # Application environment
-    ENV: str = "development"
+    ENV: str = "production"  # Default to production for Railway deployment
     
     # Database configuration
     DATABASE_URL: str = "sqlite:///./data/masterspeak.db"

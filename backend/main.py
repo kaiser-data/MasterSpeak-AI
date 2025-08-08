@@ -98,12 +98,24 @@ allowed_origins = [
     if origin.strip()
 ]
 
-# Add wildcard for development and Vercel preview domains
+# Add wildcard for development
 if settings.ENV == "development":
     allowed_origins.append("http://localhost:*")
 
-# Add wildcard for Vercel preview domains
-allowed_origins.append("https://*.vercel.app")
+# Always add Vercel preview domains regardless of environment
+# Note: FastAPI CORS doesn't support wildcards, so we add specific domains
+allowed_origins.extend([
+    "https://masterspeak-ai-git-main-kaiser.vercel.app",
+    "https://masterspeak-ai.vercel.app"
+])
+
+# In production, be more permissive with CORS for Vercel preview URLs
+if settings.ENV != "development":
+    # Add common Vercel preview URL patterns
+    allowed_origins.extend([
+        "https://masterspeak-ai-git-main-kaiserpw.vercel.app",
+        "https://masterspeak-ai-git-main-kaiser-data.vercel.app"
+    ])
 
 # Add security middleware - be more permissive for Railway deployment
 allowed_hosts = ["localhost", "127.0.0.1", "*.localhost"]
