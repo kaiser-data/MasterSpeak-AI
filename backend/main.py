@@ -28,6 +28,7 @@ except ImportError:
 from backend.routes import all_routers, auth_router, analyze_router
 from backend.api.v1 import api_router
 from backend.debug_routes import router as debug_router
+from backend.simple_analysis_routes import router as simple_router
 from backend.database.database import init_db, engine, get_session
 from backend.seed_db import seed_database
 from backend.config import settings
@@ -335,4 +336,5 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(analyze_router)
 app.include_router(debug_router, prefix="/debug")
-logger.info("API-only routers loaded: auth, analyze, api/v1, debug")
+app.include_router(simple_router)
+logger.info("API-only routers loaded: auth, analyze, api/v1, debug, simple")
