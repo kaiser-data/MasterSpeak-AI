@@ -105,7 +105,7 @@ if settings.ENV == "development":
 # Add security middleware
 app.add_middleware(
     TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"] if settings.ENV == "development" else ["yourdomain.com"]
+    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"] if settings.ENV == "development" else ["masterspeak-ai-production.up.railway.app", "*.up.railway.app"]
 )
 
 # Request logging and tracing middleware
