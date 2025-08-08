@@ -2,8 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "dockerfile",
-    "dockerfilePath": "backend/Dockerfile.railway",
-    "buildCommand": "echo 'Force rebuild cache bust'"
+    "dockerfilePath": "backend/Dockerfile.railway"
   },
   "deploy": {
     "healthcheckPath": "/health",
