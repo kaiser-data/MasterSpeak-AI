@@ -57,6 +57,17 @@ export default function SignUpPage() {
       }, 2000)
     } catch (error: any) {
       console.error('Sign up error:', error)
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+        }
+      })
       
       if (error.response?.status === 400) {
         if (error.response.data?.detail?.includes('already exists')) {
@@ -66,6 +77,10 @@ export default function SignUpPage() {
         }
       } else if (error.response?.data?.detail) {
         toast.error(error.response.data.detail)
+      } else if (error.code === 'ERR_NETWORK') {
+        toast.error('Cannot connect to server. Please check if the API is running.')
+      } else if (error.message) {
+        toast.error(`Signup failed: ${error.message}`)
       } else {
         toast.error('Failed to create account. Please try again.')
       }

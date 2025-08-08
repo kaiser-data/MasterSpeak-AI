@@ -98,9 +98,12 @@ allowed_origins = [
     if origin.strip()
 ]
 
-# Add wildcard for development
+# Add wildcard for development and Vercel preview domains
 if settings.ENV == "development":
     allowed_origins.append("http://localhost:*")
+
+# Add wildcard for Vercel preview domains
+allowed_origins.append("https://*.vercel.app")
 
 # Add security middleware - be more permissive for Railway deployment
 allowed_hosts = ["localhost", "127.0.0.1", "*.localhost"]
@@ -115,7 +118,9 @@ app.add_middleware(
     allowed_hosts=allowed_hosts
 )
 
-logger.info(f"Environment: {settings.ENV}, Allowed hosts: {allowed_hosts}")
+logger.info(f"Environment: {settings.ENV}")
+logger.info(f"Allowed hosts: {allowed_hosts}")
+logger.info(f"CORS allowed origins: {allowed_origins}")
 
 # Request logging and tracing middleware
 @app.middleware("http")
@@ -205,10 +210,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
-    expose_headers=["Content-Length", "X-Total-Count"],
+    allow_credentials=False,  # Set False since we're not using cookies for auth in frontend
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 

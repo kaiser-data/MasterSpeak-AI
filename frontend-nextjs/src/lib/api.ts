@@ -57,7 +57,17 @@ api.interceptors.response.use(
     }
 
     if (!error.response) {
-      toast.error('Network error. Please check your connection.')
+      // Log the actual error for debugging
+      console.error('Network error details:', {
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+        }
+      })
+      toast.error(`Network error: ${error.message}. Please check your connection.`)
       return Promise.reject(error)
     }
 
