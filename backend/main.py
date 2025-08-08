@@ -121,6 +121,14 @@ logger.info(f"Trusted hosts: {settings.trusted_hosts}")
 logger.info(f"CORS allowed origins: {settings.allowed_origins}")
 logger.info(f"CORS origin regex: {settings.ALLOWED_ORIGIN_REGEX}")
 
+# Log more detailed CORS configuration for debugging
+logger.info("CORS configured with:")
+logger.info(f"  - Origins: {settings.allowed_origins}")
+logger.info(f"  - Regex pattern: {settings.ALLOWED_ORIGIN_REGEX}")
+logger.info(f"  - Allow credentials: False")
+logger.info(f"  - Allow methods: *")
+logger.info(f"  - Allow headers: *")
+
 # Request logging and tracing middleware
 @app.middleware("http")
 async def request_middleware(request: Request, call_next):
