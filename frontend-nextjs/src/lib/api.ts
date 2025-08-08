@@ -1,11 +1,11 @@
 import axios, { AxiosError, AxiosResponse } from 'axios'
 import { toast } from 'react-hot-toast'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000'
 
 // Create axios instance with default config
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+  baseURL: `${API_BASE}/api/v1`,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

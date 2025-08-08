@@ -9,13 +9,13 @@ const nextConfig = {
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000',
   },
   async rewrites() {
     return [
       {
         source: '/api/backend/:path*',
-        destination: `${process.env.API_BASE_URL || 'http://localhost:8000'}/api/v1/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'}/api/v1/:path*`,
       },
     ]
   },
