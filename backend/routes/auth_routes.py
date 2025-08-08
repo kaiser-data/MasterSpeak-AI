@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 async def get_user_db() -> AsyncGenerator[SQLAlchemyUserDatabase, None]:
     async with get_session() as session:
         try:
-            yield SQLAlchemyUserDatabase(User, session)
+            yield SQLAlchemyUserDatabase(session, User)  # Correct order: session first, then User model
         finally:
             pass  # Session cleanup handled by context manager
 
