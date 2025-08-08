@@ -40,8 +40,8 @@ class Settings(BaseSettings):
     
     # CORS and security settings
     TRUSTED_HOSTS: Union[List[str], str] = "localhost,127.0.0.1,[::1],masterspeak-ai-production.up.railway.app"
-    ALLOWED_ORIGINS: Union[List[str], str] = "http://localhost:3000,https://masterspeak-ai.vercel.app"
-    ALLOWED_ORIGIN_REGEX: Optional[str] = r"^https://.*\.vercel\.app$"
+    ALLOWED_ORIGINS: Union[List[str], str] = "http://localhost:3000,https://masterspeak-ai.vercel.app,https://master-speak-gr57j6rdr-martins-projects-5db7b2b8.vercel.app"
+    ALLOWED_ORIGIN_REGEX: Optional[str] = r"^https://(masterspeak-ai|master-speak).*\.vercel\.app$"
     
     # JWT settings
     JWT_LIFETIME_SECONDS: int = 3600  # 1 hour default
