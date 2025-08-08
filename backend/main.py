@@ -225,10 +225,10 @@ async def api_status(request: Request):
 # Initialize start time for uptime calculation
 api_status.start_time = time.time()
 
-# Root route - redirect to home
+# Root route - redirect to API documentation
 @app.get("/")
 async def root():
-    return RedirectResponse(url="/home")
+    return RedirectResponse(url="/docs")
 
 # Include API v1 router (RESTful JSON API)
 app.include_router(api_router, prefix="/api/v1")
