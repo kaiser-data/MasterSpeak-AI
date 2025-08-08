@@ -130,6 +130,16 @@ export const authAPI = {
     const response = await api.post('/auth/reset-password', { token, password })
     return response.data
   },
+
+  verifyEmail: async (token: string) => {
+    const response = await api.post('/auth/verify', { token })
+    return response.data
+  },
+
+  requestVerify: async (email: string) => {
+    const response = await api.post('/auth/request-verify-token', { email })
+    return response.data
+  },
 }
 
 export const speechAPI = {

@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     RATE_LIMIT_UPLOAD: str = "5/minute"
     RATE_LIMIT_HEALTH: str = "100/minute"
     
+    # Email Configuration
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = "noreply@masterspeak-ai.com"
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_USE_TLS: bool = True
+    MAIL_USE_SSL: bool = False
+    
 
     @property
     def trusted_hosts(self) -> List[str]:

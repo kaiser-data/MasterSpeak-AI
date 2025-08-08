@@ -14,7 +14,7 @@ import hashlib
 
 from backend.config import settings # Import settings
 from backend.prompts import get_prompt
-from backend.schemas.analysis_schema import AnalysisResponse # Import schema
+from backend.schemas.analysis_schema import OpenAIAnalysisResponse, AnalysisResponse # Import schema
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class RateLimiter:
 rate_limiter = RateLimiter(tokens_per_minute=40)
 
 # Cache for storing analysis results
-analysis_cache: Dict[str, AnalysisResponse] = {}
+analysis_cache: Dict[str, OpenAIAnalysisResponse] = {}
 
 def get_cache_key(text: str, prompt_type: str) -> str:
     """Generate a cache key for the analysis request."""
@@ -81,7 +81,7 @@ def get_cached_prompt(prompt_type: str) -> str:
     """Cache the prompt templates to avoid repeated string formatting."""
     return get_prompt(prompt_type)
 
-async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_retries: int = 3) -> AnalysisResponse:
+async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_retries: int = 3) -> OpenAIAnalysisResponse:
     """
     Analyze text using OpenAI GPT with rate limiting, caching, and retry logic.
 
@@ -91,7 +91,7 @@ async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_ret
         max_retries (int): Maximum number of retry attempts.
 
     Returns:
-        AnalysisResponse: Validated analysis data.
+        OpenAIAnalysisResponse: Validated analysis data.
 
     Raises:
         HTTPException: If analysis fails or response is invalid.
@@ -117,13 +117,13 @@ async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_ret
 
                 logger.info(f"Sending request to OpenAI (prompt type: {prompt_type})...")
                 response = client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-3.5-turbo",  # Changed from gpt-4 to more reliable model
                     messages=[
                         {"role": "system", "content": "You are an expert speech analyst. Respond ONLY with valid JSON matching the requested structure. The feedback field should be a single string, not a dictionary."},
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.5,
-                    max_tokens=300,
+                    max_tokens=500,  # Increased token limit
                     response_format={"type": "json_object"}
                 )
 
@@ -131,7 +131,7 @@ async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_ret
                 logger.debug(f"Raw OpenAI response content: {analysis_content}")
 
                 # Parse and validate the JSON response
-                analysis_data = AnalysisResponse.parse_raw(analysis_content)
+                analysis_data = OpenAIAnalysisResponse.parse_raw(analysis_content)
                 
                 # Cache the result
                 analysis_cache[cache_key] = analysis_data
@@ -152,10 +152,14 @@ async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_ret
                 await asyncio.sleep(wait_time)
             continue
 
-        except (APIError, AuthenticationError, BadRequestError) as e:
+        except AuthenticationError as e:
+            logger.error(f"OpenAI Authentication Error - check API key: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Analysis service authentication failed")
+        
+        except (APIError, BadRequestError) as e:
             logger.error(f"OpenAI API Error: {e}", exc_info=True)
             raise HTTPException(
-                status_code=502 if isinstance(e, (APIError, RateLimitError)) else 500,
+                status_code=502 if isinstance(e, APIError) else 500,
                 detail=f"Analysis service error: {type(e).__name__}"
             )
 

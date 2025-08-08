@@ -12,6 +12,7 @@ from backend.database.models import User
 from backend.database.database import get_session
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.config import settings
+from backend.services.email_service import email_service
 try:
     from backend.middleware import limiter, RateLimits
 except ImportError:
@@ -46,12 +47,43 @@ class UserManager(BaseUserManager[User, UUID]):
 
     async def on_after_register(self, user: User, request=None):
         logger.info(f"User {user.id} has registered.")
+        # Auto-verify user on registration (email verification disabled for now)
+        if not user.is_verified:
+            user.is_verified = True
+            logger.info(f"User {user.email} auto-verified on registration")
+        # Email verification disabled - users can sign in immediately
 
     async def on_after_forgot_password(self, user: User, token: str, request=None):
-        logger.info(f"User {user.id} requested a password reset.")  # Never log tokens!
+        logger.info(f"User {user.id} requested a password reset.")
+        # Send password reset email
+        try:
+            success = email_service.send_password_reset_email(
+                to_email=user.email,
+                token=token,
+                user_name=user.full_name
+            )
+            if success:
+                logger.info(f"Password reset email sent to {user.email}")
+            else:
+                logger.warning(f"Failed to send password reset email to {user.email}")
+        except Exception as e:
+            logger.error(f"Error sending password reset email to {user.email}: {e}")
 
     async def on_after_request_verify(self, user: User, token: str, request=None):
-        logger.info(f"User {user.id} requested email verification.")  # Never log tokens!
+        logger.info(f"User {user.id} requested email verification.")
+        # Send verification email
+        try:
+            success = email_service.send_verification_email(
+                to_email=user.email,
+                token=token,
+                user_name=user.full_name
+            )
+            if success:
+                logger.info(f"Verification email sent to {user.email}")
+            else:
+                logger.warning(f"Failed to send verification email to {user.email}")
+        except Exception as e:
+            logger.error(f"Error sending verification email to {user.email}: {e}")
 
 # Dependency to get the UserManager
 async def get_user_manager(user_db=Depends(get_user_db)):

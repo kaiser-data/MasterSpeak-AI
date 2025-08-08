@@ -49,12 +49,12 @@ export default function SignUpPage() {
       
       await authAPI.signUp(signUpData)
       
-      toast.success('Account created successfully! Please check your email to verify your account.')
+      toast.success('Account created successfully! You can now sign in.')
       
       // Redirect to sign in page
       setTimeout(() => {
         router.push('/auth/signin')
-      }, 2000)
+      }, 1500)
     } catch (error: any) {
       console.error('Sign up error:', error)
       console.error('Error details:', {

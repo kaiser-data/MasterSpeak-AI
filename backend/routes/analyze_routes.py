@@ -11,7 +11,7 @@ from datetime import datetime
 
 from backend.database.database import get_session
 from backend.database.models import Speech, SpeechAnalysis, User
-from backend.openai_service import analyze_text_with_gpt
+from backend.openai_service_backup import analyze_text_with_gpt_simple as analyze_text_with_gpt
 # Prompts are now handled by the openai_service function
 
 # Configure logging
