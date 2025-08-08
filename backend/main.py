@@ -91,63 +91,36 @@ if RATE_LIMITING_AVAILABLE and rate_limit_exceeded_handler:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-# Configure CORS with secure settings
-allowed_origins = [
-    origin.strip() 
-    for origin in settings.ALLOWED_ORIGINS.split(",")
-    if origin.strip()
-]
-
-# Add wildcard for development
-if settings.ENV == "development":
-    allowed_origins.append("http://localhost:*")
-
-# Always add Vercel preview domains regardless of environment
-# Note: FastAPI CORS doesn't support wildcards, so we add specific domains
-allowed_origins.extend([
-    "https://masterspeak-ai-git-main-kaiser.vercel.app",
-    "https://masterspeak-ai.vercel.app"
-])
-
-# In production, be more permissive with CORS for Vercel preview URLs
-if settings.ENV != "development":
-    # Add common Vercel preview URL patterns - be very permissive for testing
-    allowed_origins.extend([
-        "https://masterspeak-ai-git-main-kaiserpw.vercel.app",
-        "https://masterspeak-ai-git-main-kaiser-data.vercel.app",
-        "https://masterspeak-ai-git-main-kaiser.vercel.app",
-        "https://masterspeak-ai-git-kaiserpw.vercel.app",
-        "https://masterspeak-ai-marty.vercel.app",
-        "https://masterspeak-ai-marty-kaiser.vercel.app"
-    ])
-
-# For debugging: temporarily allow any vercel domain
-# TODO: Remove this in production and use specific domains
-allowed_origins.extend([
-    "https://masterspeak-ai-6kzq1kmyj-kaiser-datas-projects.vercel.app",
-    "https://masterspeak-ai-six-flame-59.vercel.app"
-])
-
-# Add security middleware - be more permissive for Railway deployment
-allowed_hosts = ["localhost", "127.0.0.1", "*.localhost"]
-if settings.ENV != "development":
-    allowed_hosts.extend(["masterspeak-ai-production.up.railway.app", "*.up.railway.app"])
-
-# Always allow Railway domains regardless of ENV setting
-allowed_hosts.extend(["masterspeak-ai-production.up.railway.app", "*.up.railway.app"])
-
+# Add security middleware first
 app.add_middleware(
     TrustedHostMiddleware, 
-    allowed_hosts=allowed_hosts
+    allowed_hosts=settings.trusted_hosts
+)
+
+# Add CORS middleware second (before other middleware and routers)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_origin_regex=settings.ALLOWED_ORIGIN_REGEX,
+    allow_credentials=False,  # Keep False unless we truly use cookies
+    allow_methods=["*"],      # Includes OPTIONS
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 logger.info(f"Environment: {settings.ENV}")
-logger.info(f"Allowed hosts: {allowed_hosts}")
-logger.info(f"CORS allowed origins: {allowed_origins}")
+logger.info(f"Trusted hosts: {settings.trusted_hosts}")
+logger.info(f"CORS allowed origins: {settings.allowed_origins}")
+logger.info(f"CORS origin regex: {settings.ALLOWED_ORIGIN_REGEX}")
 
 # Request logging and tracing middleware
 @app.middleware("http")
 async def request_middleware(request: Request, call_next):
+    # Skip processing for OPTIONS requests (preflight) - let CORS handle it
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    
     # Generate and set request ID
     request_id = generate_request_id()
     set_request_id(request_id)
@@ -230,15 +203,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=False,  # Set False since we're not using cookies for auth in frontend
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,  # Cache preflight requests for 1 hour
-)
+# CORS middleware already added above - removed duplicate
 
 # API-only mode: no static files or templates
 logger.info("Running in API-only mode - no static files or templates")

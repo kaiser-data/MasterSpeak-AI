@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Union
 
 # Get the project root directory (parent of backend directory)
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
@@ -38,8 +38,10 @@ class Settings(BaseSettings):
     RESET_SECRET: str  # For password reset tokens
     VERIFICATION_SECRET: str  # For email verification tokens
     
-    # CORS settings
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000,https://masterspeak-ai.vercel.app,https://masterspeak-ai-git-main-kaiser.vercel.app"  # Comma-separated list
+    # CORS and security settings
+    TRUSTED_HOSTS: Union[List[str], str] = "localhost,127.0.0.1,[::1],masterspeak-ai-production.up.railway.app"
+    ALLOWED_ORIGINS: Union[List[str], str] = "http://localhost:3000,https://masterspeak-ai.vercel.app"
+    ALLOWED_ORIGIN_REGEX: Optional[str] = r"^https://.*\.vercel\.app$"
     
     # JWT settings
     JWT_LIFETIME_SECONDS: int = 3600  # 1 hour default
@@ -59,6 +61,16 @@ class Settings(BaseSettings):
     RATE_LIMIT_UPLOAD: str = "5/minute"
     RATE_LIMIT_HEALTH: str = "100/minute"
     
+
+    @property
+    def trusted_hosts(self) -> List[str]:
+        v = self.TRUSTED_HOSTS
+        return [s.strip() for s in (v.split(",") if isinstance(v, str) else v)]
+
+    @property
+    def allowed_origins(self) -> List[str]:
+        v = self.ALLOWED_ORIGINS
+        return [s.strip() for s in (v.split(",") if isinstance(v, str) else v)]
 
     # Optional: Configure BaseSettings to read from .env
     class Config:
