@@ -102,11 +102,20 @@ allowed_origins = [
 if settings.ENV == "development":
     allowed_origins.append("http://localhost:*")
 
-# Add security middleware
+# Add security middleware - be more permissive for Railway deployment
+allowed_hosts = ["localhost", "127.0.0.1", "*.localhost"]
+if settings.ENV != "development":
+    allowed_hosts.extend(["masterspeak-ai-production.up.railway.app", "*.up.railway.app"])
+
+# Always allow Railway domains regardless of ENV setting
+allowed_hosts.extend(["masterspeak-ai-production.up.railway.app", "*.up.railway.app"])
+
 app.add_middleware(
     TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"] if settings.ENV == "development" else ["masterspeak-ai-production.up.railway.app", "*.up.railway.app"]
+    allowed_hosts=allowed_hosts
 )
+
+logger.info(f"Environment: {settings.ENV}, Allowed hosts: {allowed_hosts}")
 
 # Request logging and tracing middleware
 @app.middleware("http")

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     VERIFICATION_SECRET: str  # For email verification tokens
     
     # CORS settings
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000"  # Comma-separated list
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000,https://masterspeak-ai.vercel.app"  # Comma-separated list
     
     # JWT settings
     JWT_LIFETIME_SECONDS: int = 3600  # 1 hour default
