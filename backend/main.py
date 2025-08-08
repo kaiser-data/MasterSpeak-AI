@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from datetime import datetime
 import time
+import os
 try:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
@@ -22,9 +23,9 @@ except ImportError:
     class RateLimitExceeded(Exception):
         pass
     rate_limit_exceeded_handler = None
-from backend.routes import all_routers
+from backend.routes import all_routers, auth_router, analyze_router
 from backend.api.v1 import api_router
-from backend.database.database import init_db, engine
+from backend.database.database import init_db, engine, get_session
 from backend.seed_db import seed_database
 from backend.config import settings
 from pathlib import Path
@@ -39,20 +40,37 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup with robust logging
+    process_start_time = time.time()
+    app.state.process_start_time = process_start_time
+    logger.info("==> Starting MasterSpeak API (API-only mode)")
+    
+    # Optional DB health check during startup
+    db_ok = None
+    if os.getenv("HEALTHCHECK_DB", "false").lower() == "true":
+        try:
+            logger.info("DB ping: Testing connection...")
+            async with engine.begin() as conn:
+                await conn.execute("SELECT 1")
+            db_ok = True
+            logger.info("DB ping: OK")
+        except Exception as e:
+            db_ok = False
+            logger.warning("DB ping: FAILED (%s) — continuing startup", e)
+    
     try:
-        logger.info("Starting database initialization...")
         await init_db()
-        logger.info("Database initialized successfully")
+        logger.info("Database tables initialized")
         
-        logger.info("Starting database seeding...")
         await seed_database()
-        logger.info("Database seeded successfully")
+        logger.info("Database seeded")
+        
+        logger.info("==> MasterSpeak API ready for requests")
         
         yield
         
         # Shutdown
-        logger.info("Shutting down database connections...")
+        logger.info("<== Shutting down MasterSpeak API")
         await engine.dispose()
         logger.info("Database connections closed")
     except Exception as e:
@@ -192,13 +210,36 @@ logger.info("Running in API-only mode - no static files or templates")
 @app.get("/health")
 async def health_check(request: Request):
     """Health check endpoint for monitoring and load balancers"""
-    return JSONResponse({
-        "status": "healthy",
-        "service": "MasterSpeak AI",
-        "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
-        "environment": settings.ENV
-    })
+    try:
+        uptime_seconds = time.time() - getattr(app.state, 'process_start_time', time.time())
+        
+        health_data = {
+            "status": "ok",
+            "service": "MasterSpeak AI",
+            "version": "1.0.0",
+            "uptime_seconds": round(uptime_seconds, 2),
+            "timestamp": datetime.utcnow().isoformat(),
+            "environment": settings.ENV
+        }
+        
+        # Optional DB check only if flag is set
+        if os.getenv("HEALTHCHECK_DB", "false").lower() == "true":
+            try:
+                async with get_session() as session:
+                    await session.execute("SELECT 1")
+                health_data["db_ok"] = True
+            except Exception:
+                health_data["db_ok"] = False
+        
+        return JSONResponse(health_data)
+    except Exception as e:
+        # Never crash /health
+        logger.error(f"Health check error: {e}")
+        return JSONResponse({
+            "status": "ok", 
+            "error": "health_check_failed",
+            "timestamp": datetime.utcnow().isoformat()
+        })
 
 # API status endpoint
 @app.get("/api/status")
@@ -230,9 +271,8 @@ api_status.start_time = time.time()
 async def root():
     return RedirectResponse(url="/docs")
 
-# Include API v1 router (RESTful JSON API)
+# Include JSON API routers only
 app.include_router(api_router, prefix="/api/v1")
-
-# Include legacy HTML routers (for backward compatibility)
-for router in all_routers:
-    app.include_router(router)
+app.include_router(auth_router)
+app.include_router(analyze_router)
+logger.info("API-only routers loaded: auth, analyze, api/v1")

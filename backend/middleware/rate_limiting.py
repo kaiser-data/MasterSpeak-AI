@@ -15,8 +15,12 @@ except ImportError:
 try:
     import redis
     REDIS_AVAILABLE = True
+    Redis = redis.Redis  # Type alias for annotation
 except ImportError:
     REDIS_AVAILABLE = False
+    # Mock redis for type annotation when not available
+    class Redis:
+        pass
     
 from fastapi import Request
 from starlette.responses import JSONResponse
@@ -40,7 +44,7 @@ except ImportError:
 from backend.logging_config import log_rate_limit_event, get_request_id
 
 # Redis client setup with graceful fallback
-redis_client: Optional[redis.Redis] = None
+redis_client: Optional[Redis] = None
 if settings.REDIS_URL and settings.RATE_LIMIT_ENABLED and REDIS_AVAILABLE:
     try:
         redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)

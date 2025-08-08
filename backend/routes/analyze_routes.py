@@ -11,8 +11,8 @@ from datetime import datetime
 
 from backend.database.database import get_session
 from backend.database.models import Speech, SpeechAnalysis, User
-from backend.openai_service import OpenAIService
-from backend.prompts import ANALYSIS_PROMPT_TEMPLATE
+from backend.openai_service import analyze_text_with_gpt
+# Prompts are now handled by the openai_service function
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 # Create a router for analyze-related routes
 router = APIRouter()
 
-# Initialize OpenAI service
-openai_service = OpenAIService()
+# OpenAI service is now imported as function
 
 # API endpoints only - no HTML/template endpoints
 # All HTML endpoints have been removed for API-only mode
@@ -45,18 +44,18 @@ async def analyze_text_api(
         )
         
         # Perform analysis
-        analysis_result = await openai_service.analyze_speech(text, ANALYSIS_PROMPT_TEMPLATE)
+        analysis_result = await analyze_text_with_gpt(text, "default")
         
         # Create analysis record
         analysis = SpeechAnalysis(
             id=uuid4(),
             speech_id=speech_id,
             word_count=len(text.split()),
-            clarity_score=analysis_result.get("clarity_score", 0),
-            structure_score=analysis_result.get("structure_score", 0),
-            filler_word_count=analysis_result.get("filler_word_count", 0),
-            prompt=ANALYSIS_PROMPT_TEMPLATE,
-            feedback=analysis_result.get("feedback", ""),
+            clarity_score=analysis_result.clarity_score,
+            structure_score=analysis_result.structure_score,
+            filler_word_count=getattr(analysis_result, 'filler_words_rating', 0),
+            prompt="default",
+            feedback=analysis_result.feedback or "",
             created_at=datetime.utcnow()
         )
         
@@ -71,7 +70,12 @@ async def analyze_text_api(
         return JSONResponse(content={
             "success": True,
             "speech_id": str(speech_id),
-            "analysis": analysis_result
+            "analysis": {
+                "clarity_score": analysis_result.clarity_score,
+                "structure_score": analysis_result.structure_score,
+                "filler_word_count": getattr(analysis_result, 'filler_words_rating', 0),
+                "feedback": analysis_result.feedback or ""
+            }
         })
         
     except Exception as e:
@@ -101,18 +105,18 @@ async def analyze_upload_api(
         )
         
         # Perform analysis
-        analysis_result = await openai_service.analyze_speech(text, ANALYSIS_PROMPT_TEMPLATE)
+        analysis_result = await analyze_text_with_gpt(text, "default")
         
         # Create analysis record
         analysis = SpeechAnalysis(
             id=uuid4(),
             speech_id=speech_id,
             word_count=len(text.split()),
-            clarity_score=analysis_result.get("clarity_score", 0),
-            structure_score=analysis_result.get("structure_score", 0),
-            filler_word_count=analysis_result.get("filler_word_count", 0),
-            prompt=ANALYSIS_PROMPT_TEMPLATE,
-            feedback=analysis_result.get("feedback", ""),
+            clarity_score=analysis_result.clarity_score,
+            structure_score=analysis_result.structure_score,
+            filler_word_count=getattr(analysis_result, 'filler_words_rating', 0),
+            prompt="default",
+            feedback=analysis_result.feedback or "",
             created_at=datetime.utcnow()
         )
         
@@ -127,7 +131,12 @@ async def analyze_upload_api(
         return JSONResponse(content={
             "success": True,
             "speech_id": str(speech_id),
-            "analysis": analysis_result
+            "analysis": {
+                "clarity_score": analysis_result.clarity_score,
+                "structure_score": analysis_result.structure_score,
+                "filler_word_count": getattr(analysis_result, 'filler_words_rating', 0),
+                "feedback": analysis_result.feedback or ""
+            }
         })
         
     except Exception as e:
