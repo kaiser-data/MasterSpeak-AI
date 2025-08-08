@@ -9,28 +9,30 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements from project root
-COPY ../requirements.txt .
-
-# Install Python dependencies
+# Copy requirements and install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-COPY . ./backend/
-COPY ../generate_secrets.py .
+# Copy all backend code
+COPY . .
 
-# Create directories
+# Copy additional files from project root (if they exist)
+COPY ../generate_secrets.py . 2>/dev/null || echo "generate_secrets.py not found, skipping"
+
+# Create necessary directories
 RUN mkdir -p data
 
-# Set Python path to find backend modules
+# Copy Railway environment defaults
+COPY .env.railway .env
+
+# Set Python path for module imports
 ENV PYTHONPATH=/app
 
-# Expose port (Railway will set PORT env var)
-EXPOSE $PORT
+# Default PORT for Railway
+ENV PORT=8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:$PORT/health || exit 1
+# Make startup script executable
+RUN chmod +x railway-start.py
 
-# Start server (Railway provides PORT env var)
-CMD uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+# Start server with Railway initialization
+CMD python railway-start.py
