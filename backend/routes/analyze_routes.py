@@ -9,7 +9,7 @@ import os
 import logging
 from datetime import datetime
 
-from backend.database.database import get_db
+from backend.database.database import get_session
 from backend.database.models import Speech, SpeechAnalysis, User
 from backend.openai_service import OpenAIService
 from backend.prompts import ANALYSIS_PROMPT_TEMPLATE
@@ -29,8 +29,7 @@ openai_service = OpenAIService()
 @router.post("/api/analyze/text")
 async def analyze_text_api(
     text: str = Form(...),
-    title: str = Form(None),
-    db: AsyncSession = Depends(get_db)
+    title: str = Form(None)
 ):
     """API endpoint for text analysis."""
     try:
@@ -64,9 +63,10 @@ async def analyze_text_api(
         speech.analysis = analysis
         
         # Save to database
-        db.add(speech)
-        db.add(analysis)
-        await db.commit()
+        async with get_session() as db:
+            db.add(speech)
+            db.add(analysis)
+            await db.commit()
         
         return JSONResponse(content={
             "success": True,
@@ -76,14 +76,12 @@ async def analyze_text_api(
         
     except Exception as e:
         logger.error(f"Error analyzing text: {e}")
-        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/analyze/upload")
 async def analyze_upload_api(
     file: UploadFile = File(...),
-    title: str = Form(None),
-    db: AsyncSession = Depends(get_db)
+    title: str = Form(None)
 ):
     """API endpoint for file upload analysis."""
     try:
@@ -121,9 +119,10 @@ async def analyze_upload_api(
         speech.analysis = analysis
         
         # Save to database
-        db.add(speech)
-        db.add(analysis)
-        await db.commit()
+        async with get_session() as db:
+            db.add(speech)
+            db.add(analysis)
+            await db.commit()
         
         return JSONResponse(content={
             "success": True,
@@ -133,52 +132,51 @@ async def analyze_upload_api(
         
     except Exception as e:
         logger.error(f"Error analyzing upload: {e}")
-        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/analyze/{speech_id}")
 async def get_analysis_api(
-    speech_id: str,
-    db: AsyncSession = Depends(get_db)
+    speech_id: str
 ):
     """API endpoint to get analysis results."""
     try:
-        # Query speech and analysis
-        result = await db.execute(
-            select(Speech).where(Speech.id == speech_id)
-        )
-        speech = result.scalar_one_or_none()
-        
-        if not speech:
-            raise HTTPException(status_code=404, detail="Speech not found")
-        
-        # Get analysis
-        result = await db.execute(
-            select(SpeechAnalysis).where(SpeechAnalysis.speech_id == speech_id)
-        )
-        analysis = result.scalar_one_or_none()
-        
-        if not analysis:
-            raise HTTPException(status_code=404, detail="Analysis not found")
-        
-        return JSONResponse(content={
-            "success": True,
-            "speech": {
-                "id": str(speech.id),
-                "title": speech.title,
-                "content": speech.content,
-                "source_type": speech.source_type,
-                "created_at": speech.created_at.isoformat()
-            },
-            "analysis": {
-                "word_count": analysis.word_count,
-                "clarity_score": analysis.clarity_score,
-                "structure_score": analysis.structure_score,
-                "filler_word_count": analysis.filler_word_count,
-                "feedback": analysis.feedback,
-                "created_at": analysis.created_at.isoformat()
-            }
-        })
+        async with get_session() as db:
+            # Query speech and analysis
+            result = await db.execute(
+                select(Speech).where(Speech.id == speech_id)
+            )
+            speech = result.scalar_one_or_none()
+            
+            if not speech:
+                raise HTTPException(status_code=404, detail="Speech not found")
+            
+            # Get analysis
+            result = await db.execute(
+                select(SpeechAnalysis).where(SpeechAnalysis.speech_id == speech_id)
+            )
+            analysis = result.scalar_one_or_none()
+            
+            if not analysis:
+                raise HTTPException(status_code=404, detail="Analysis not found")
+            
+            return JSONResponse(content={
+                "success": True,
+                "speech": {
+                    "id": str(speech.id),
+                    "title": speech.title,
+                    "content": speech.content,
+                    "source_type": speech.source_type,
+                    "created_at": speech.created_at.isoformat()
+                },
+                "analysis": {
+                    "word_count": analysis.word_count,
+                    "clarity_score": analysis.clarity_score,
+                    "structure_score": analysis.structure_score,
+                    "filler_word_count": analysis.filler_word_count,
+                    "feedback": analysis.feedback,
+                    "created_at": analysis.created_at.isoformat()
+                }
+            })
         
     except HTTPException:
         raise
