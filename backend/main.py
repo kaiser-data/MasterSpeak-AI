@@ -62,6 +62,13 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("Database tables initialized")
         
+        # Run migration for is_verified column
+        try:
+            from backend.migrations.add_is_verified import migrate_add_is_verified
+            await migrate_add_is_verified()
+        except Exception as e:
+            logger.warning(f"Migration failed (continuing startup): {e}")
+        
         await seed_database()
         logger.info("Database seeded")
         
