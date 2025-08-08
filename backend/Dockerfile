@@ -1,38 +1,41 @@
-# Backend Dockerfile for MasterSpeak AI
+# Railway-optimized Dockerfile for MasterSpeak AI Backend
 FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (minimal for Railway memory limits)
 RUN apt-get update && apt-get install -y \
     curl \
-    gcc \
+    --no-install-recommends \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy requirements and install Python dependencies (memory optimized)
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy entire backend directory
+COPY backend/ .
 
-# Copy backend code
-COPY backend/ ./backend/
-COPY generate_secrets.py .
-COPY setup.py .
+# Create necessary directories
+RUN mkdir -p data
 
-# Create directories
-RUN mkdir -p data test_data
+# Copy Railway-specific environment defaults
+COPY .env.railway .env
 
-# Set Python path
+# Set Python path for proper module imports
 ENV PYTHONPATH=/app
 
-# Expose port
-EXPOSE 8000
+# Railway uses PORT environment variable
+ENV PORT=8000
 
-# Health check
+# Ensure startup script is executable
+RUN chmod +x railway-start.py
+
+# Health check for Railway
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Start server
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start application with Railway initialization
+CMD ["python", "railway-start.py"]
