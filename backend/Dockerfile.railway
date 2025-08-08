@@ -16,9 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all backend code
 COPY . .
 
-# Copy additional files from project root (if they exist)
-COPY ../generate_secrets.py . 2>/dev/null || echo "generate_secrets.py not found, skipping"
-
 # Create necessary directories
 RUN mkdir -p data
 
