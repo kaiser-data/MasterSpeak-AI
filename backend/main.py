@@ -111,11 +111,22 @@ allowed_origins.extend([
 
 # In production, be more permissive with CORS for Vercel preview URLs
 if settings.ENV != "development":
-    # Add common Vercel preview URL patterns
+    # Add common Vercel preview URL patterns - be very permissive for testing
     allowed_origins.extend([
         "https://masterspeak-ai-git-main-kaiserpw.vercel.app",
-        "https://masterspeak-ai-git-main-kaiser-data.vercel.app"
+        "https://masterspeak-ai-git-main-kaiser-data.vercel.app",
+        "https://masterspeak-ai-git-main-kaiser.vercel.app",
+        "https://masterspeak-ai-git-kaiserpw.vercel.app",
+        "https://masterspeak-ai-marty.vercel.app",
+        "https://masterspeak-ai-marty-kaiser.vercel.app"
     ])
+
+# For debugging: temporarily allow any vercel domain
+# TODO: Remove this in production and use specific domains
+allowed_origins.extend([
+    "https://masterspeak-ai-6kzq1kmyj-kaiser-datas-projects.vercel.app",
+    "https://masterspeak-ai-six-flame-59.vercel.app"
+])
 
 # Add security middleware - be more permissive for Railway deployment
 allowed_hosts = ["localhost", "127.0.0.1", "*.localhost"]
