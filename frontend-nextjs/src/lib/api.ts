@@ -3,6 +3,9 @@ import { toast } from 'react-hot-toast'
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000'
 
+// Debug logging for API base URL
+console.log('🔧 API_BASE configured as:', API_BASE)
+
 // Create axios instance with default config
 export const api = axios.create({
   baseURL: `${API_BASE}/api/v1`,
@@ -15,6 +18,15 @@ export const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    // Debug logging for API requests
+    console.log('🚀 API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      headers: config.headers
+    })
+    
     // Get token from localStorage or cookie
     const token = localStorage.getItem('access_token')
     if (token) {
