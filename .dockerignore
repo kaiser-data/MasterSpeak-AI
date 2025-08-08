@@ -1,0 +1,15 @@
+**/__pycache__/
+**/*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+frontend-nextjs/
+frontend/
+e2e/
+.git/
+test/
+docs/
+*.md
+.github/
+node_modules/

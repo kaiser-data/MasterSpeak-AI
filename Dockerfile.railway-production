@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
-# Copy backend application code
-COPY backend/ .
+# Copy backend application code (preserve package structure)
+COPY backend/ ./backend
 
 # Create data directory
 RUN mkdir -p data
@@ -24,16 +24,12 @@ RUN mkdir -p data
 # Copy Railway environment defaults
 COPY backend/.env.railway .env
 
-# Set Python path and port
+# Set Python path
 ENV PYTHONPATH=/app
-ENV PORT=8000
 
-# Make startup script executable
-RUN chmod +x railway-start.py
-
-# Health check
+# Health check using $PORT
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:$PORT/health || exit 1
+  CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Start with Railway initialization
-CMD ["python", "railway-start.py"]
+# Start with $PORT awareness and correct package path
+CMD ["sh", "-c", "python -m uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
