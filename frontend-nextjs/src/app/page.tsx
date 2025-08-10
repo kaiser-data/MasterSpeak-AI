@@ -71,6 +71,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      {/* DEPLOYMENT TEST - VERY VISIBLE */}
+      <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50 text-lg font-bold">
+        🚨 DEPLOYMENT TEST v2.3 - NEW VERSION IS LIVE! 🚨
+      </div>
+      
       {/* Navigation */}
       <nav className="container-responsive py-6">
         <div className="flex items-center justify-between">
@@ -89,6 +94,9 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <Link href="/dashboard" className="bg-red-600 text-white px-4 py-2 rounded text-sm font-bold">
+              🧪 DEBUG DASHBOARD
+            </Link>
             <Link href="/auth/signin" className="nav-link">
               Sign In
             </Link>

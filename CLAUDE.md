@@ -155,3 +155,5 @@ Use `test_main.http` for manual API testing with endpoints for:
 - PDF and TXT file processing
 - Content validation before analysis
 - Proper error handling for file processing failures
+- 404
+This page could not be found.
