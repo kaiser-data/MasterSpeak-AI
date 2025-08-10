@@ -112,8 +112,9 @@ async def analyze_text(
                 else:
                     final_user_id = user_id_value
         except (ValueError, TypeError):
-            # Invalid UUID format, proceed without user_id
-            logger.warning(f"Invalid user_id format: {user_id_value}")
+            # Invalid UUID format, proceed without user_id (this is expected for non-UUID inputs)
+            if user_id_value:
+                logger.debug(f"Ignoring non-UUID user_id: {user_id_value}")
             final_user_id = None
         
         # Verify user exists if user_id is provided
@@ -163,16 +164,20 @@ async def analyze_text(
         await session.commit()
         await session.refresh(analysis)
 
-        return AnalysisResponse(
+        # Create response
+        response = AnalysisResponse(
             speech_id=speech.id,
             analysis_id=analysis.id,
             word_count=word_count,
             clarity_score=analysis_result.clarity_score,
             structure_score=analysis_result.structure_score,
             filler_words_rating=analysis_result.filler_words_rating,
-            feedback=analysis_result.feedback,
+            feedback=analysis_result.feedback or "",
             created_at=analysis.created_at
         )
+        
+        logger.info(f"Analysis completed successfully: speech_id={speech.id}")
+        return response
 
     except HTTPException:
         raise
