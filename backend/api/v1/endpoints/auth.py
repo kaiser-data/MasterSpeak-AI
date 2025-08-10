@@ -45,7 +45,7 @@ def hash_password_simple(password: str) -> str:
         import hashlib
         return f"fallback_{hashlib.md5(password.encode()).hexdigest()}"
 
-@router.post("/register", response_model=UserRead, summary="User Registration")
+@router.post("/register-simple", response_model=UserRead, summary="User Registration")
 @create_rate_limit_decorator(RateLimits.AUTH_REGISTER)
 async def register_user(
     request: Request,
@@ -84,6 +84,18 @@ async def register_user(
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@router.post("/register", response_model=UserRead, summary="User Registration (Proxy)")
+@create_rate_limit_decorator(RateLimits.AUTH_REGISTER)  
+async def register_proxy(
+    request: Request,
+    user_data: UserCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Proxy endpoint that forwards to the working registration logic
+    """
+    return await register_user(request, user_data, session)
 
 # Get the current user (with rate limiting)
 @router.get("/me", response_model=UserRead, summary="Get Current User")
