@@ -166,15 +166,6 @@ async def request_middleware(request: Request, call_next: Callable[[Request], Aw
         await _set_body(request, body)
     try:
         response = await call_next(request)
-    except* Exception as eg:
-        # Log each sub-exception with full stacks
-        for i, sub in enumerate(eg.exceptions, 1):
-            logging.error(
-                "X-Request-ID=%s %s %s sub-exception %d/%d",
-                request_id, request.method, request.url.path, i, len(eg.exceptions),
-                exc_info=sub,
-            )
-        raise
     except Exception as e:
         logging.exception("X-Request-ID=%s %s %s crashed", request_id, request.method, request.url.path)
         raise

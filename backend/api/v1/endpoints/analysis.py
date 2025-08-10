@@ -48,41 +48,17 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-class TextAnalysisIn(BaseModel):
-    """Unified model for text analysis input"""
-    text: str
-    user_id: Optional[str] = None
-    prompt_type: Optional[str] = "default"
-
-async def parse_text_analysis(request: Request) -> TextAnalysisIn:
-    """Parse text analysis input from either JSON or multipart/form-data"""
-    try:
-        content_type = request.headers.get("content-type", "")
-        
-        if content_type and content_type.startswith("multipart/form-data"):
-            form = await request.form()
-            data = {
-                "text": form.get("text"),
-                "user_id": form.get("user_id"),
-                "prompt_type": form.get("prompt_type", "default")
-            }
-        else:
-            data = await request.json()
-        
-        return TextAnalysisIn(**data)
-    except ValidationError as e:
-        logger.error(f"Validation error: {e}")
-        raise HTTPException(status_code=422, detail="Invalid request body")
-    except Exception as e:
-        logger.error(f"Parse error: {e}")
-        raise HTTPException(status_code=422, detail="Invalid request body")
-
 @router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
 @create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
-    payload: TextAnalysisIn = Depends(parse_text_analysis),
+    request: Request,
     session: AsyncSession = Depends(get_session),
     current_user = Depends(get_current_user_optional),
+    # Try to accept both JSON and form data
+    payload: Optional[AnalyzeTextRequest] = Body(None),
+    text: Optional[str] = Form(None),
+    user_id: Optional[str] = Form(None),
+    prompt_type: Optional[str] = Form("default"),
 ) -> AnalysisResponse:
     """
     Analyze text content and return AI-powered feedback
@@ -94,33 +70,43 @@ async def analyze_text(
         AnalysisResponse: Analysis results with scores and feedback
     """
     try:
+        # Handle both JSON (via payload) and form data (via individual parameters)
+        if payload:
+            # JSON request
+            text_content = payload.text
+            prompt_value = payload.prompt or "default"
+            user_id_value = payload.user_id
+        else:
+            # Form data request
+            text_content = text
+            prompt_value = prompt_type or "default"
+            user_id_value = user_id
+            
         # Extract and validate text
-        text = (payload.text or "").strip()
-        if not text:
+        text_content = (text_content or "").strip()
+        if not text_content:
             raise HTTPException(status_code=400, detail="`text` is required")
         
-        prompt_type = payload.prompt_type or "default"
-        
-        # Prefer authenticated user; fallback to optional payload.user_id; allow None
-        user_id = getattr(current_user, "id", None) if current_user else None
-        if user_id is None:
-            user_id = payload.user_id  # may be None
+        # Prefer authenticated user; fallback to optional user_id; allow None
+        final_user_id = getattr(current_user, "id", None) if current_user else None
+        if final_user_id is None:
+            final_user_id = user_id_value  # may be None
         
         # Verify user exists if user_id is provided
-        if user_id:
-            result = await session.execute(select(User).where(User.id == user_id))
+        if final_user_id:
+            result = await session.execute(select(User).where(User.id == final_user_id))
             user = result.scalar_one_or_none()
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
 
         # Calculate basic metrics
-        word_count = len(text.split())
+        word_count = len(text_content.split())
         
         # Create and save Speech record
         speech = Speech(
-            user_id=user_id,  # Can be None for anonymous
+            user_id=final_user_id,  # Can be None for anonymous
             title=f"Text Analysis {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            content=text,
+            content=text_content,
             source_type=SourceType.TEXT,
             created_at=datetime.utcnow()
         )
@@ -129,7 +115,7 @@ async def analyze_text(
         await session.refresh(speech)
 
         # Get analysis from OpenAI
-        analysis_result = await analyze_text_with_gpt(text, prompt_type)
+        analysis_result = await analyze_text_with_gpt(text_content, prompt_value)
 
         # Create and save Analysis record
         analysis = SpeechAnalysis(
@@ -138,7 +124,7 @@ async def analyze_text(
             clarity_score=analysis_result.clarity_score,
             structure_score=analysis_result.structure_score,
             filler_word_count=analysis_result.filler_words_rating,
-            prompt=prompt_type,
+            prompt=prompt_value,
             feedback=analysis_result.feedback or "",
             created_at=datetime.utcnow()
         )
