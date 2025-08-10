@@ -62,6 +62,26 @@ async def lifespan(app: FastAPI):
             db_ok = False
             logger.warning("DB ping: FAILED (%s) — continuing startup", e)
     
+    # Log deployment verification info
+    commit_sha = os.getenv("RAILWAY_GIT_COMMIT_SHA", os.getenv("COMMIT_SHA", "unknown"))
+    logger.info(f"🚀 Deployment Info: COMMIT_SHA={commit_sha}")
+    
+    # Verify schema and route registration
+    from fastapi.routing import APIRoute
+    try:
+        from backend.schemas.analysis_schema import AnalyzeTextRequest
+        fld = AnalyzeTextRequest.model_fields.get("user_id")
+        logger.info("🔍 AnalyzeTextRequest.user_id required=%s", getattr(fld, "is_required", None))
+    except Exception as e:
+        logger.warning("Schema introspection failed: %r", e)
+
+    def _log_text_route():
+        for r in app.routes:
+            if isinstance(r, APIRoute) and r.path == "/api/v1/analysis/text":
+                logger.info("🔗 /api/v1/analysis/text -> %s.%s methods=%s",
+                           r.endpoint.__module__, r.endpoint.__name__, sorted(r.methods))
+    app.add_event_handler("startup", _log_text_route)
+
     try:
         await init_db()
         logger.info("Database tables initialized")
@@ -334,7 +354,7 @@ async def root():
 # Include JSON API routers only
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router)
-app.include_router(analyze_router)
+# app.include_router(analyze_router)  # DISABLED: legacy routes, conflicts with /api/v1
 app.include_router(debug_router, prefix="/debug")
-app.include_router(simple_router)
-logger.info("API-only routers loaded: auth, analyze, api/v1, debug, simple")
+# app.include_router(simple_router)  # DISABLED: legacy simple routes, use /api/v1 instead
+logger.info("API-only routers loaded: auth, api/v1, debug (legacy analyze/simple disabled)")

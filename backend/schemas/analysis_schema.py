@@ -1,9 +1,15 @@
 # backend/schemas/analysis_schema.py
 
-from pydantic import BaseModel, Field, Json
+from pydantic import BaseModel, Field, Json, UUID4
 from typing import Optional, Dict
 from uuid import UUID
 from datetime import datetime
+
+class AnalyzeTextRequest(BaseModel):
+    """Request model for text analysis with optional user_id"""
+    text: str = Field(min_length=1, description="Text content to analyze")
+    prompt: Optional[str] = Field(None, description="Analysis prompt type") 
+    user_id: Optional[UUID4] = Field(None, description="Optional user ID")
 
 class OpenAIAnalysisResponse(BaseModel):
     """Schema to validate the direct JSON response from OpenAI."""

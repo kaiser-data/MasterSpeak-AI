@@ -40,9 +40,9 @@ api_router.include_router(
     tags=["Speeches"]
 )
 
-# Analysis alias endpoints (for frontend compatibility)
-# Note: No prefix since it's already in the router definition
-api_router.include_router(
-    analysis_alias_router,
-    tags=["Analysis-Alias"]
-)
+# Analysis alias endpoints (DISABLED - causing duplicate routes)
+# The main analysis.router already provides /api/v1/analysis/text
+# api_router.include_router(
+#     analysis_alias_router,
+#     tags=["Analysis-Alias"]
+# )

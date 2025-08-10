@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @router.post("/api/v1/analysis/simple-text")
 async def simple_analyze_text(
     text: str = Form(...),
-    user_id: str = Form(...),
+    user_id: str = Form(None),
     prompt_type: str = Form("default")
 ):
     """Simple analysis endpoint that always works."""

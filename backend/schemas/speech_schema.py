@@ -15,14 +15,14 @@ class SpeechCreate(SpeechBase):
     """
     Schema for creating a new speech entry.
     """
-    user_id: UUID = Field(..., description="ID of the user who created the speech")
+    user_id: Optional[UUID] = Field(None, description="ID of the user who created the speech")
 
 class SpeechRead(SpeechBase):
     """
     Schema for returning speech data.
     """
     id: UUID = Field(..., description="Unique identifier for the speech")
-    user_id: UUID = Field(..., description="ID of the user who created the speech")
+    user_id: Optional[UUID] = Field(None, description="ID of the user who created the speech")
     timestamp: datetime = Field(..., description="Timestamp when the speech was created")
 
     class Config:

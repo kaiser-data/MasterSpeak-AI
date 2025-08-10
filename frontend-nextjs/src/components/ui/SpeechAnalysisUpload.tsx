@@ -23,7 +23,6 @@ import { speechAnalysisSchema, type SpeechAnalysisFormData } from '@/lib/auth-sc
 import { speechAPI } from '@/lib/api'
 
 interface SpeechAnalysisUploadProps {
-  userId: string
   onAnalysisComplete?: (result: any) => void
 }
 
@@ -44,7 +43,7 @@ const PROMPT_TYPES = [
   { value: 'brief', label: 'Brief', description: 'Quick summary and key points' },
 ]
 
-export default function SpeechAnalysisUpload({ userId, onAnalysisComplete }: SpeechAnalysisUploadProps) {
+export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnalysisUploadProps) {
   const [uploadMode, setUploadMode] = useState<'file' | 'text' | 'record'>('text')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [recordingState, setRecordingState] = useState<AudioRecorderState>({
@@ -208,7 +207,7 @@ export default function SpeechAnalysisUpload({ userId, onAnalysisComplete }: Spe
         // Text analysis
         result = await speechAPI.analyzeText({
           text: data.text,
-          prompt_type: data.prompt_type,
+          prompt: data.prompt_type,
         })
       }
 

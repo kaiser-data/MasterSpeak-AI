@@ -1,6 +1,6 @@
 # backend/api/v1/endpoints/analysis.py
 
-from fastapi import APIRouter, Request, Form, File, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, Request, Form, File, UploadFile, Body, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,13 @@ from typing import Optional, List
 
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
 from backend.database.database import get_session
+
+# Optional auth dependency
+try:
+    from backend.dependencies.auth import get_current_user_optional
+except Exception:
+    def get_current_user_optional():
+        return None
 from backend.openai_service_backup import analyze_text_with_gpt_simple as analyze_text_with_gpt
 try:
     from backend.middleware.rate_limiting import limiter, RateLimits, create_rate_limit_decorator
@@ -33,7 +40,7 @@ except ImportError:
         'ANALYSIS_TEXT': '10/minute',
         'ANALYSIS_UPLOAD': '5/minute'
     })()
-from backend.schemas.analysis_schema import AnalysisResult, AnalysisResponse
+from backend.schemas.analysis_schema import AnalysisResult, AnalysisResponse, AnalyzeTextRequest
 from backend.schemas.speech_schema import SpeechRead
 import logging
 
@@ -43,24 +50,32 @@ logger = logging.getLogger(__name__)
 @router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
 @create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
-    request: Request,
-    text: str = Form(..., description="Text content to analyze"),
-    user_id: Optional[UUID] = Form(None, description="ID of the user performing the analysis"),
-    prompt_type: str = Form("default", description="Type of analysis prompt to use"),
-    session: AsyncSession = Depends(get_session)
+    payload: AnalyzeTextRequest = Body(...),
+    session: AsyncSession = Depends(get_session),
+    current_user = Depends(get_current_user_optional),
 ) -> AnalysisResponse:
     """
     Analyze text content and return AI-powered feedback
     
     Args:
-        text: The text content to analyze
-        user_id: UUID of the user performing the analysis  
-        prompt_type: Type of analysis prompt (default, detailed, brief)
+        payload: AnalyzeTextRequest with text, optional prompt, optional user_id
         
     Returns:
         AnalysisResponse: Analysis results with scores and feedback
     """
     try:
+        # Extract and validate text
+        text = (payload.text or "").strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="`text` is required")
+        
+        prompt_type = payload.prompt or "default"
+        
+        # Prefer authenticated user; fallback to optional payload.user_id; allow None
+        user_id = getattr(current_user, "id", None) if current_user else None
+        if user_id is None:
+            user_id = payload.user_id  # may be None
+        
         # Verify user exists if user_id is provided
         if user_id:
             result = await session.execute(select(User).where(User.id == user_id))

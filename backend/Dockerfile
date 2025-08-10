@@ -2,6 +2,10 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 
+# Cache busting argument
+ARG CACHE_BUST=2
+ENV CACHE_BUST=$CACHE_BUST
+
 COPY requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir --disable-pip-version-check -r requirements.txt

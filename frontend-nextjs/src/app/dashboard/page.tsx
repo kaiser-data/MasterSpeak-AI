@@ -131,7 +131,6 @@ export default function DashboardPage() {
               </button>
             </div>
             <SpeechAnalysisUpload
-              userId={user.id}
               onAnalysisComplete={handleAnalysisComplete}
             />
           </motion.div>

@@ -145,15 +145,16 @@ export const authAPI = {
 export const speechAPI = {
   analyzeText: async (data: {
     text: string
-    prompt_type: string
+    prompt?: string
   }) => {
-    const formData = new FormData()
-    formData.append('text', data.text)
-    formData.append('prompt_type', data.prompt_type)
+    const payload = {
+      text: data.text,
+      prompt: data.prompt || 'default'
+    }
 
-    const response = await api.post('/analysis/simple-text', formData, {
+    const response = await api.post('/analysis/text', payload, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
     })
     return response.data
