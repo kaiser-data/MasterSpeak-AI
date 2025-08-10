@@ -10,7 +10,7 @@ from typing import Optional, List
 
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
 from backend.database.database import get_session
-from backend.mock_analysis_service import analyze_text_with_gpt_mock as analyze_text_with_gpt
+from backend.openai_service_backup import analyze_text_with_gpt_simple as analyze_text_with_gpt
 try:
     from backend.middleware.rate_limiting import limiter, RateLimits, create_rate_limit_decorator
     RATE_LIMITING_AVAILABLE = True

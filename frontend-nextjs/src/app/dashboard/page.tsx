@@ -20,8 +20,8 @@ import SpeechAnalysisUpload from '@/components/ui/SpeechAnalysisUpload'
 
 // Mock data - in real app this would come from API
 const mockUser = {
-  id: '123',
-  name: 'John Doe',
+  id: 'a95bf157-d3f3-440f-bf91-6a31f85c833a', // Use the actual test user UUID
+  name: 'John Doe', 
   email: 'john@example.com',
   avatar: null,
 }

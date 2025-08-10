@@ -117,14 +117,14 @@ async def analyze_text_with_gpt(text: str, prompt_type: str = "default", max_ret
 
                 logger.info(f"Sending request to OpenAI (prompt type: {prompt_type})...")
                 response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",  # Changed from gpt-4 to more reliable model
+                    model="gpt-3.5-turbo-0125",  # Specific stable version
                     messages=[
                         {"role": "system", "content": "You are an expert speech analyst. Respond ONLY with valid JSON matching the requested structure. The feedback field should be a single string, not a dictionary."},
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.5,
-                    max_tokens=500,  # Increased token limit
-                    response_format={"type": "json_object"}
+                    max_tokens=500
+                    # Removed response_format as it's not supported with this key
                 )
 
                 analysis_content = response.choices[0].message.content.strip()

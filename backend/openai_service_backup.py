@@ -27,7 +27,7 @@ async def analyze_text_with_gpt_simple(text: str, prompt_type: str = "default") 
         
         logger.info(f"Sending simple request to OpenAI (prompt type: {prompt_type})...")
         
-        # Try with basic model and no special formatting
+        # Try with basic model and no response_format
         response = client.chat.completions.create(
             model="gpt-3.5-turbo-0125",  # Specific stable version
             messages=[
