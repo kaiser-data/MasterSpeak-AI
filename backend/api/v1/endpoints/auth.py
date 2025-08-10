@@ -34,16 +34,27 @@ except ImportError:
 
 router = APIRouter()
 
-# Simple password hashing with fallback (matches seed_db.py)
+# Robust password hashing with fallback (matches seed_db.py)
 def hash_password_simple(password: str) -> str:
+    """Hash password with bcrypt or fallback to development-only method."""
     try:
         from passlib.context import CryptContext
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        # Test that bcrypt actually works
+        test_hash = pwd_context.hash("test")
+        pwd_context.verify("test", test_hash)
         return pwd_context.hash(password)
-    except Exception:
-        # Fallback to MD5 - NOT secure, only for development
-        import hashlib
-        return f"fallback_{hashlib.md5(password.encode()).hexdigest()}"
+    except ImportError:
+        pass  # Fall through to fallback
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"bcrypt failed: {e}, using fallback")
+    
+    # Fallback method - NOT secure, only for development/testing
+    import hashlib
+    fallback_hash = f"fallback_{hashlib.sha256(password.encode()).hexdigest()}"
+    return fallback_hash
 
 @router.post("/register-simple", response_model=UserRead, summary="User Registration")
 @create_rate_limit_decorator(RateLimits.AUTH_REGISTER)
