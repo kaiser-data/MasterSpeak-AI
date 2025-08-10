@@ -1,9 +1,13 @@
 # backend/api/v1/endpoints/auth.py
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi.responses import JSONResponse
 from backend.routes.auth_routes import fastapi_users, auth_backend
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.database.models import User
+from backend.database.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 try:
     from backend.middleware.rate_limiting import limiter, RateLimits, create_rate_limit_decorator
     RATE_LIMITING_AVAILABLE = True
@@ -29,6 +33,56 @@ except ImportError:
     })()
 
 router = APIRouter()
+
+# Simple password hashing with fallback (matches seed_db.py)
+def hash_password_simple(password: str) -> str:
+    try:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        return pwd_context.hash(password)
+    except Exception:
+        # Fallback to MD5 - NOT secure, only for development
+        import hashlib
+        return f"fallback_{hashlib.md5(password.encode()).hexdigest()}"
+
+@router.post("/register-simple", response_model=UserRead, summary="Simple Registration (Fallback)")
+@create_rate_limit_decorator(RateLimits.AUTH_REGISTER)
+async def register_simple(
+    request: Request,
+    user_data: UserCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Simple user registration endpoint with bcrypt fallback
+    """
+    try:
+        # Check if user already exists
+        result = await session.execute(select(User).where(User.email == user_data.email))
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="User already exists")
+
+        # Create new user
+        hashed_password = hash_password_simple(user_data.password)
+        user = User(
+            email=user_data.email,
+            hashed_password=hashed_password,
+            full_name=user_data.full_name or user_data.email,
+            is_active=True,
+            is_verified=True,  # Auto-verify for now
+            is_superuser=False
+        )
+        
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        
+        return UserRead.from_orm(user)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 # Get the current user (with rate limiting)
 @router.get("/me", response_model=UserRead, summary="Get Current User")
