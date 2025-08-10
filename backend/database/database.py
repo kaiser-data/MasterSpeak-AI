@@ -12,15 +12,26 @@ from typing import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
-# Ensure data directory exists
-data_dir = Path(__file__).parent.parent.parent / "data"
-data_dir.mkdir(exist_ok=True)
-
-# Create the database URL with absolute path
+# Create the database URL with proper path handling
 database_url = settings.DATABASE_URL
-if database_url.startswith("sqlite:///"):
-    db_path = data_dir / "masterspeak.db"
-    database_url = f"sqlite+aiosqlite:///{db_path.absolute()}"
+
+if database_url.startswith("sqlite:"):
+    # Handle both relative and absolute SQLite paths
+    if database_url.startswith("sqlite:///./"):
+        # Relative path - create data directory in project root
+        project_root = Path(__file__).parent.parent.parent
+        data_dir = project_root / "data"
+        data_dir.mkdir(exist_ok=True)
+        db_path = data_dir / "masterspeak.db"
+        database_url = f"sqlite+aiosqlite:///{db_path.absolute()}"
+        logger.info(f"Using SQLite database at: {db_path.absolute()}")
+    elif database_url.startswith("sqlite:///"):
+        # Already absolute path
+        database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+    else:
+        # Relative path without ./
+        database_url = database_url.replace("sqlite:", "sqlite+aiosqlite:")
+        logger.info(f"Using SQLite database: {database_url}")
 
 # Configure engine with connection pooling and optimized settings
 # Note: For SQLite with async, we use StaticPool
