@@ -1,7 +1,11 @@
 # main.py
 
+import os
+import uuid
+import logging
+from typing import Callable, Awaitable, Dict, Any
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.datastructures import Headers
@@ -10,7 +14,6 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from datetime import datetime
 import time
-import os
 try:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
@@ -108,6 +111,12 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error during startup/shutdown: {str(e)}")
         raise
 
+# ── CORS (edit ALLOWED_ORIGINS via env) ────────────────────────────────────────
+# Example: ALLOWED_ORIGINS="https://<VERCEL_DOMAIN>,http://localhost:3000"
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()
+]
+
 app = FastAPI(
     title="MasterSpeak AI",
     description="Advanced Speech Analysis API with AI-powered feedback",
@@ -122,126 +131,55 @@ if RATE_LIMITING_AVAILABLE and rate_limit_exceeded_handler:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-# CORS MUST BE OUTERMOST so it can attach headers even when inner middleware/handlers error
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_origin_regex=settings.ALLOWED_ORIGIN_REGEX,
-    allow_credentials=False,  # Keep False unless we truly use cookies
-    allow_methods=["*"],      # Includes OPTIONS
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=600,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    expose_headers=["X-Request-ID"],
 )
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+# Trust Railway proxy and localhost - expand trusted_hosts to include Railway domain
+trusted_hosts = settings.trusted_hosts + ["masterspeak-ai-production.up.railway.app"]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
 logger.info(f"Environment: {settings.ENV}")
 logger.info(f"Trusted hosts: {settings.trusted_hosts}")
-logger.info(f"CORS allowed origins: {settings.allowed_origins}")
-logger.info(f"CORS origin regex: {settings.ALLOWED_ORIGIN_REGEX}")
+logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
 
-# Log more detailed CORS configuration for debugging
-logger.info("CORS configured with:")
-logger.info(f"  - Origins: {settings.allowed_origins}")
-logger.info(f"  - Regex pattern: {settings.ALLOWED_ORIGIN_REGEX}")
-logger.info(f"  - Allow credentials: False")
-logger.info(f"  - Allow methods: *")
-logger.info(f"  - Allow headers: *")
+# ── Helpers: restore body so downstream can read it ────────────────────────────
+async def _set_body(request: Request, body: bytes) -> None:
+    async def receive() -> Dict[str, Any]:
+        return {"type": "http.request", "body": body, "more_body": False}
+    # Starlette private API, but canonical for re-injecting the body
+    request._receive = receive  # type: ignore[attr-defined]
 
-# Log incoming Origin for CORS debugging
+# ── Hardened middleware (replaces your current request_middleware) ─────────────
 @app.middleware("http")
-async def _log_origin(request: Request, call_next):
-    origin = request.headers.get("origin")
-    logger.info("REQ %s %s Origin=%s", request.method, request.url.path, origin)
-    resp = await call_next(request)
-    return resp
-
-# TEMP fallback CORS header patch (only when DEBUG_CORS is enabled)
-@app.middleware("http")
-async def _ensure_cors_header(request: Request, call_next):
-    resp = await call_next(request)
-    try:
-        if getattr(settings, "DEBUG", False) or getattr(settings, "DEBUG_CORS", False):
-            origin = request.headers.get("origin")
-            has_header = any(h.lower() == "access-control-allow-origin" for h, _ in resp.raw_headers)
-            # Check if origin is explicitly allowed or matches regex
-            allowed = origin and (
-                origin in settings.allowed_origins
-                or (
-                    settings.ALLOWED_ORIGIN_REGEX
-                    and re.match(settings.ALLOWED_ORIGIN_REGEX, origin)
-                )
-            )
-            if allowed and not has_header:
-                resp.headers["Access-Control-Allow-Origin"] = origin
-                resp.headers["Vary"] = "Origin"
-                logger.info("Injected CORS header for Origin=%s on %s", origin, request.url.path)
-    except Exception as e:
-        logger.warning("CORS fallback patch skipped due to error: %s", e)
-    return resp
-
-# Request logging and tracing middleware
-@app.middleware("http")
-async def request_middleware(request: Request, call_next):
-    # Skip processing for OPTIONS requests (preflight) - let CORS handle it
-    if request.method == "OPTIONS":
-        return await call_next(request)
-    
-    # Generate and set request ID
-    request_id = generate_request_id()
-    set_request_id(request_id)
-    
-    # Add request ID to request state for access in handlers
+async def request_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]):
+    request_id = str(uuid.uuid4())
     request.state.request_id = request_id
-    
-    start_time = time.time()
-    client_ip = request.client.host if request.client else "unknown"
-    
-    # Log request with structured data
-    logger.info(
-        f"Request: {request.method} {request.url.path}",
-        extra={
-            'event_type': 'request_start',
-            'method': request.method,
-            'path': request.url.path,
-            'client_ip': client_ip,
-            'user_agent': request.headers.get('user-agent', 'unknown'),
-            'request_id': request_id
-        }
-    )
-    
-    response = await call_next(request)
-    
-    # Calculate response time
-    process_time = time.time() - start_time
-    process_time_ms = process_time * 1000
-    
-    # Log response with structured data  
-    logger.info(
-        f"Response: {response.status_code} - {process_time_ms:.2f}ms",
-        extra={
-            'event_type': 'request_complete',
-            'method': request.method,
-            'path': request.url.path,
-            'status_code': response.status_code,
-            'response_time_ms': process_time_ms,
-            'client_ip': client_ip,
-            'request_id': request_id
-        }
-    )
-    
-    # Log performance metrics for slow requests
-    if process_time_ms > 500:  # Slow request threshold
-        log_performance_event(
-            endpoint=request.url.path,
-            response_time_ms=process_time_ms,
-            status_code=response.status_code,
-            method=request.method
-        )
-    
-    # Add request ID to response headers for debugging
+    # Buffer body for methods that usually send one, then restore it
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        body = await request.body()
+        request.state.body = body
+        await _set_body(request, body)
+    try:
+        response = await call_next(request)
+    except* Exception as eg:
+        # Log each sub-exception with full stacks
+        for i, sub in enumerate(eg.exceptions, 1):
+            logging.error(
+                "X-Request-ID=%s %s %s sub-exception %d/%d",
+                request_id, request.method, request.url.path, i, len(eg.exceptions),
+                exc_info=sub,
+            )
+        raise
+    except Exception as e:
+        logging.exception("X-Request-ID=%s %s %s crashed", request_id, request.method, request.url.path)
+        raise
+    # Tag every successful response so the UI can show request IDs in Network tab
     response.headers["X-Request-ID"] = request_id
-    
     return response
 
 # Global exception handlers
@@ -260,11 +198,12 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.exception(f"Validation error on {request.url.path}: {exc.errors()}")
+    request_id = getattr(request.state, 'request_id', 'unknown')
     return JSONResponse(
         status_code=422,
         content={
-            "error": "Validation error",
-            "details": exc.errors(),
+            "detail": exc.errors(),
+            "request_id": request_id,
             "timestamp": datetime.utcnow().isoformat()
         }
     )

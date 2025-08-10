@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from uuid import UUID
 from typing import Optional, List
+from pydantic import BaseModel, ValidationError
 
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
 from backend.database.database import get_session
@@ -47,11 +48,58 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+class TextAnalysisIn(BaseModel):
+    """Unified model for text analysis input"""
+    text: str
+    user_id: Optional[str] = None
+    prompt_type: Optional[str] = "default"
+
+async def parse_text_analysis(request: Request) -> TextAnalysisIn:
+    """Parse text analysis input from either JSON or multipart/form-data"""
+    try:
+        content_type = request.headers.get("content-type", "")
+        
+        if content_type and content_type.startswith("multipart/form-data"):
+            # Use the buffered body from middleware
+            if hasattr(request.state, 'body'):
+                # Recreate the request with buffered body
+                from starlette.requests import Request as StarletteRequest
+                from io import BytesIO
+                
+                # Create a new receive callable with the buffered body
+                async def receive():
+                    return {"type": "http.request", "body": request.state.body, "more_body": False}
+                
+                temp_request = StarletteRequest(request.scope, receive)
+                form = await temp_request.form()
+            else:
+                form = await request.form()
+                
+            data = {
+                "text": form.get("text"),
+                "user_id": form.get("user_id"),
+                "prompt_type": form.get("prompt_type") or "default"
+            }
+        else:
+            # Handle JSON
+            if hasattr(request.state, 'body'):
+                import json
+                data = json.loads(request.state.body.decode())
+            else:
+                data = await request.json()
+        
+        return TextAnalysisIn(**data)
+    except ValidationError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail="Invalid request body")
+    except Exception as e:
+        logger.error(f"Parse error: {e}")
+        raise HTTPException(status_code=422, detail="Invalid request body")
+
 @router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
 @create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
-    request: Request,
-    payload: AnalyzeTextRequest = Body(...),
+    payload: TextAnalysisIn = Depends(parse_text_analysis),
     session: AsyncSession = Depends(get_session),
     current_user = Depends(get_current_user_optional),
 ) -> AnalysisResponse:
@@ -70,7 +118,7 @@ async def analyze_text(
         if not text:
             raise HTTPException(status_code=400, detail="`text` is required")
         
-        prompt_type = payload.prompt or "default"
+        prompt_type = payload.prompt_type or "default"
         
         # Prefer authenticated user; fallback to optional payload.user_id; allow None
         user_id = getattr(current_user, "id", None) if current_user else None
