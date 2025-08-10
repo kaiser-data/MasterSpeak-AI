@@ -96,8 +96,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Migration failed (continuing startup): {e}")
         
-        await seed_database()
-        logger.info("Database seeded")
+        try:
+            await seed_database()
+            logger.info("Database seeded")
+        except Exception as e:
+            logger.warning(f"Database seeding failed (continuing startup): {e}")
+            # Continue startup even if seeding fails
         
         logger.info("==> MasterSpeak API ready for requests")
         
@@ -262,8 +266,9 @@ async def api_status(request: Request):
         async with AsyncSessionLocal() as session:
             await session.execute("SELECT 1")
             db_status = "connected"
-    except Exception:
-        db_status = "disconnected"
+    except Exception as e:
+        logger.error(f"Database connection test failed: {e}")
+        db_status = f"disconnected: {str(e)[:100]}"
     
     return JSONResponse({
         "api": "online",
