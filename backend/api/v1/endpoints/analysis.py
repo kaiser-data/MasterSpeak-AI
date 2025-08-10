@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import Optional, List
 from pydantic import BaseModel, ValidationError
 
@@ -101,16 +101,34 @@ async def analyze_text(
             raise HTTPException(status_code=400, detail="`text` is required")
         
         # Prefer authenticated user; fallback to optional user_id; allow None
-        final_user_id = getattr(current_user, "id", None) if current_user else None
-        if final_user_id is None:
-            final_user_id = user_id_value  # may be None
+        final_user_id = None
+        try:
+            if current_user:
+                final_user_id = getattr(current_user, "id", None)
+            elif user_id_value:
+                # Convert string UUID to UUID object if provided
+                if isinstance(user_id_value, str):
+                    final_user_id = UUID(user_id_value)
+                else:
+                    final_user_id = user_id_value
+        except (ValueError, TypeError):
+            # Invalid UUID format, proceed without user_id
+            logger.warning(f"Invalid user_id format: {user_id_value}")
+            final_user_id = None
         
         # Verify user exists if user_id is provided
         if final_user_id:
-            result = await session.execute(select(User).where(User.id == final_user_id))
-            user = result.scalar_one_or_none()
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+            try:
+                result = await session.execute(select(User).where(User.id == final_user_id))
+                user = result.scalar_one_or_none()
+                if not user:
+                    logger.warning(f"User not found: {final_user_id}")
+                    # Don't fail, just proceed without user association
+                    final_user_id = None
+            except Exception as e:
+                logger.error(f"Error checking user: {e}")
+                # Don't fail, just proceed without user association
+                final_user_id = None
 
         # Calculate basic metrics
         word_count = len(text_content.split())
