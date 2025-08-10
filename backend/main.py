@@ -305,7 +305,7 @@ async def health_check(request: Request):
         # Optional DB check only if flag is set
         if os.getenv("HEALTHCHECK_DB", "false").lower() == "true":
             try:
-                async with get_session() as session:
+                async with AsyncSessionLocal() as session:
                     await session.execute("SELECT 1")
                 health_data["db_ok"] = True
             except Exception:
@@ -327,8 +327,8 @@ async def api_status(request: Request):
     """Detailed API status information"""
     try:
         # Test database connection
-        from backend.database.database import get_session
-        async with get_session() as session:
+        from backend.database.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
             await session.execute("SELECT 1")
             db_status = "connected"
     except Exception:

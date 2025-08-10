@@ -40,8 +40,8 @@ async def api_status(request: Request):
     """
     try:
         # Test database connection
-        from backend.database.database import get_session
-        async with get_session() as session:
+        from backend.database.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
             await session.execute("SELECT 1")
             db_status = "connected"
     except Exception:

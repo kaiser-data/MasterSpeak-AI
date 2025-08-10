@@ -9,7 +9,7 @@ from fastapi_users.manager import BaseUserManager
 import logging
 
 from backend.database.models import User
-from backend.database.database import get_session
+from backend.database.database import AsyncSessionLocal
 from backend.schemas.user_schema import UserRead, UserCreate, UserUpdate
 from backend.config import settings
 from backend.services.email_service import email_service
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Dependency to get the user DB with async session
 async def get_user_db() -> AsyncGenerator[SQLAlchemyUserDatabase, None]:
-    async with get_session() as session:
+    async with AsyncSessionLocal() as session:
         try:
             yield SQLAlchemyUserDatabase(session, User)  # Correct order: session first, then User model
         finally:
