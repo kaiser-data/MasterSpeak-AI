@@ -240,8 +240,9 @@ async def health_check(request: Request):
         # Optional DB check only if flag is set
         if os.getenv("HEALTHCHECK_DB", "false").lower() == "true":
             try:
+                from sqlalchemy import text
                 async with AsyncSessionLocal() as session:
-                    await session.execute("SELECT 1")
+                    await session.execute(text("SELECT 1"))
                 health_data["db_ok"] = True
             except Exception:
                 health_data["db_ok"] = False
@@ -263,8 +264,9 @@ async def api_status(request: Request):
     try:
         # Test database connection
         from backend.database.database import AsyncSessionLocal
+        from sqlalchemy import text
         async with AsyncSessionLocal() as session:
-            await session.execute("SELECT 1")
+            await session.execute(text("SELECT 1"))
             db_status = "connected"
     except Exception as e:
         logger.error(f"Database connection test failed: {e}")
