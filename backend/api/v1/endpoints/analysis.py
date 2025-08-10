@@ -48,39 +48,52 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+async def get_analysis_data(request: Request) -> dict:
+    """Extract analysis data from either JSON or form data"""
+    try:
+        content_type = request.headers.get("content-type", "")
+        if content_type.startswith("multipart/form-data"):
+            form = await request.form()
+            return {
+                "text": form.get("text"),
+                "user_id": form.get("user_id"), 
+                "prompt": form.get("prompt_type", "default")
+            }
+        else:
+            # Assume JSON
+            data = await request.json()
+            return {
+                "text": data.get("text"),
+                "user_id": data.get("user_id"),
+                "prompt": data.get("prompt", "default")
+            }
+    except Exception as e:
+        logger.error(f"Error parsing request: {e}")
+        raise HTTPException(status_code=422, detail="Invalid request format")
+
 @router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
 @create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
     request: Request,
     session: AsyncSession = Depends(get_session),
     current_user = Depends(get_current_user_optional),
-    # Accept both JSON and form data - FastAPI will handle content-type routing
-    text: Optional[str] = Form(None),
-    user_id: Optional[str] = Form(None), 
-    prompt_type: Optional[str] = Form("default"),
-    payload: Optional[AnalyzeTextRequest] = Body(None, embed=False),
 ) -> AnalysisResponse:
     """
     Analyze text content and return AI-powered feedback
     
-    Args:
-        payload: AnalyzeTextRequest with text, optional prompt, optional user_id
+    Accepts both JSON and multipart/form-data:
+    - JSON: {"text": "...", "user_id": "...", "prompt": "default"}
+    - Form: text=...&user_id=...&prompt_type=default
         
     Returns:
         AnalysisResponse: Analysis results with scores and feedback
     """
     try:
-        # Handle both JSON (via payload) and form data (via individual parameters)
-        if payload:
-            # JSON request
-            text_content = payload.text
-            prompt_value = payload.prompt or "default"
-            user_id_value = payload.user_id
-        else:
-            # Form data request
-            text_content = text
-            prompt_value = prompt_type or "default"
-            user_id_value = user_id
+        # Get data from either JSON or form
+        data = await get_analysis_data(request)
+        text_content = data.get("text")
+        prompt_value = data.get("prompt", "default")  
+        user_id_value = data.get("user_id")
             
         # Extract and validate text
         text_content = (text_content or "").strip()
