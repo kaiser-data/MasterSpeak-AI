@@ -117,7 +117,7 @@ export default function DashboardPage() {
               <div className="h-8 w-8 bg-gradient-to-r from-primary-600 to-accent-600 rounded-lg flex items-center justify-center">
                 <Mic className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gradient">MasterSpeak AI</span>
+              <span className="text-xl font-bold text-gradient">MasterSpeak AI v2.1</span>
             </div>
 
             {/* Navigation */}
@@ -203,6 +203,12 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="container-responsive py-8">
+        {/* DEPLOYMENT CHECK */}
+        <div className="mb-4 p-4 bg-green-100 border-2 border-green-300 text-center">
+          <h2 className="text-lg font-bold text-green-800">🚀 NEW VERSION DEPLOYED - v2.1</h2>
+          <p className="text-green-700">If you can see this, the new version is live with debugging tools!</p>
+        </div>
+        
         {/* Debug info - ALWAYS VISIBLE for debugging */}
         <div className="mb-4 p-2 bg-blue-50 border border-blue-200 text-xs font-mono">
           <strong>DEBUG STATUS:</strong> showResults={String(showResults)}, showUpload={String(showUpload)}, hasResult={String(!!analysisResult)}
