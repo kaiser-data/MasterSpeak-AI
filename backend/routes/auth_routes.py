@@ -104,7 +104,8 @@ auth_backend = AuthenticationBackend(
         cookie_max_age=settings.JWT_LIFETIME_SECONDS,
         cookie_secure=settings.ENV == "production",  # Secure cookies in production
         cookie_httponly=True,  # Prevent XSS attacks
-        cookie_samesite="lax"  # CSRF protection
+        cookie_samesite="none" if settings.ENV == "production" else "lax",  # Cross-site for prod
+        cookie_path="/"  # Available on all paths
     ),
     get_strategy=get_jwt_strategy,
 )

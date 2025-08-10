@@ -1,15 +1,23 @@
 import axios, { AxiosError, AxiosResponse } from 'axios'
 import { toast } from 'react-hot-toast'
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000'
+// Use Next.js rewrites instead of hardcoded URLs
+console.log('🔧 Using Next.js rewrites for API calls')
 
-// Debug logging for API base URL
-console.log('🔧 API_BASE configured as:', API_BASE)
-
-// Create axios instance with default config
+// Create axios instance with rewrite-based config
 export const api = axios.create({
-  baseURL: `${API_BASE}/api/v1`,
+  baseURL: '/api/v1',  // Uses Next.js rewrites
   timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Create auth-specific client with credentials for cookie handling
+export const authAPI_client = axios.create({
+  baseURL: '/api',  // Direct to auth endpoints via rewrites
+  timeout: 30000,
+  withCredentials: true,  // Include cookies for auth
   headers: {
     'Content-Type': 'application/json',
   },
@@ -87,6 +95,55 @@ api.interceptors.response.use(
   }
 )
 
+// Response interceptor for auth client with X-Request-ID extraction
+authAPI_client.interceptors.response.use(
+  (response: AxiosResponse) => {
+    // Extract X-Request-ID for debugging
+    const requestId = response.headers['x-request-id']
+    if (requestId) {
+      console.log('🔍 Auth Response X-Request-ID:', requestId)
+    }
+    return response
+  },
+  (error: AxiosError) => {
+    // Extract X-Request-ID from error response
+    const requestId = error.response?.headers['x-request-id']
+    if (requestId) {
+      console.error('❌ Auth Error X-Request-ID:', requestId)
+      // Attach to error for UI display
+      error.requestId = requestId
+    }
+    
+    // Classify errors for better UX
+    if (!error.response) {
+      // CORS/preflight or network error
+      const corsError = new Error('Sign-in blocked by browser (CORS).')
+      corsError.name = 'CORSError'
+      throw corsError
+    }
+    
+    if (error.response.status === 401 || error.response.status === 403) {
+      const authError = new Error('Invalid credentials.')
+      authError.name = 'AuthError'
+      throw authError
+    }
+    
+    if (error.response.status >= 400 && error.response.status < 500) {
+      const validationError = new Error(error.response.data?.detail || 'Validation error.')
+      validationError.name = 'ValidationError'
+      throw validationError
+    }
+    
+    if (error.response.status >= 500) {
+      const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`)
+      serverError.name = 'ServerError'
+      throw serverError
+    }
+    
+    throw error
+  }
+)
+
 // API functions
 export const authAPI = {
   signIn: async (credentials: { email: string; password: string }) => {
@@ -94,7 +151,7 @@ export const authAPI = {
     formData.append('username', credentials.email)
     formData.append('password', credentials.password)
     
-    const response = await api.post('/auth/jwt/login', formData, {
+    const response = await authAPI_client.post('/auth/jwt/login', formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },

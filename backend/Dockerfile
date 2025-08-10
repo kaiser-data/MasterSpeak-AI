@@ -19,5 +19,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD python -c "import os,sys,urllib.request; url=f'http://127.0.0.1:{os.environ.get('PORT','8000')}/health'; \
                  sys.exit(0) if urllib.request.urlopen(url, timeout=3).getcode()==200 else sys.exit(1)"
 
-# Start uvicorn directly
-CMD ["sh","-c","python -m uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start uvicorn with proxy headers for Railway
+CMD ["sh","-c","python -m uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
