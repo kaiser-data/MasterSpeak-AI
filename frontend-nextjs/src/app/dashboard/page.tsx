@@ -80,6 +80,12 @@ export default function DashboardPage() {
     setAnalysisResult(null)
   }
 
+  const handleNewAnalysis = () => {
+    setShowResults(false)
+    setShowUpload(true)
+    setAnalysisResult(null)
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -130,6 +136,7 @@ export default function DashboardPage() {
           <AnalysisResults 
             result={analysisResult}
             onBack={handleBackToDashboard}
+            onNewAnalysis={handleNewAnalysis}
           />
         ) : showUpload ? (
           <motion.div

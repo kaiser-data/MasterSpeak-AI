@@ -23,9 +23,10 @@ interface AnalysisResultsProps {
     }
   }
   onBack: () => void
+  onNewAnalysis?: () => void
 }
 
-export default function AnalysisResults({ result, onBack }: AnalysisResultsProps) {
+export default function AnalysisResults({ result, onBack, onNewAnalysis }: AnalysisResultsProps) {
   if (!result || !result.success) {
     return (
       <div className="card max-w-4xl mx-auto text-center py-8">
@@ -230,7 +231,10 @@ export default function AnalysisResults({ result, onBack }: AnalysisResultsProps
           What's Next?
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button className="btn-primary">
+          <button 
+            onClick={onNewAnalysis || onBack}
+            className="btn-primary"
+          >
             Analyze Another Speech
           </button>
           <button className="btn-outline">
