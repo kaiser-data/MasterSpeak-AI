@@ -153,7 +153,7 @@ export const speechAPI = {
     formData.append('user_id', data.user_id)
     formData.append('prompt_type', data.prompt_type)
 
-    const response = await api.post('/analysis/text', formData, {
+    const response = await api.post('/analysis/simple-text', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

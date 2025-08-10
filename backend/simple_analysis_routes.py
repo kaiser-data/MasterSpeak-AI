@@ -10,10 +10,11 @@ from datetime import datetime
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/api/simple-analyze/text")
+@router.post("/api/v1/analysis/simple-text")
 async def simple_analyze_text(
     text: str = Form(...),
-    title: str = Form("Simple Analysis")
+    user_id: str = Form(...),
+    prompt_type: str = Form("default")
 ):
     """Simple analysis endpoint that always works."""
     try:
@@ -40,16 +41,14 @@ async def simple_analyze_text(
         speech_id = str(uuid.uuid4())
         
         return JSONResponse(content={
-            "success": True,
             "speech_id": speech_id,
-            "analysis": {
-                "word_count": word_count,
-                "clarity_score": clarity_score,
-                "structure_score": structure_score,
-                "filler_word_count": filler_count,
-                "feedback": feedback,
-                "created_at": datetime.utcnow().isoformat()
-            }
+            "analysis_id": speech_id,  # Use same ID for simplicity
+            "word_count": word_count,
+            "clarity_score": clarity_score,
+            "structure_score": structure_score,
+            "filler_words_rating": 10 - filler_count if filler_count < 10 else 1,
+            "feedback": feedback,
+            "created_at": datetime.utcnow().isoformat()
         })
         
     except Exception as e:
