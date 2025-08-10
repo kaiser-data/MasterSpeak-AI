@@ -289,6 +289,21 @@ api_status.start_time = time.time()
 async def root():
     return RedirectResponse(url="/docs")
 
+# DEBUG: Test endpoint to verify response format
+@app.get("/api/v1/test-analysis-response")
+async def test_analysis_response():
+    """Return test analysis response in exact format frontend expects"""
+    return JSONResponse({
+        "success": True,
+        "speech_id": "test-speech-id-12345",
+        "analysis": {
+            "clarity_score": 8,
+            "structure_score": 7,
+            "filler_word_count": 3,
+            "feedback": "🧪 TEST: This is a test feedback message to verify the frontend display is working correctly. If you can see this, the frontend component is working and the issue is in the API call flow."
+        }
+    })
+
 # Include JSON API routers only
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router)

@@ -141,6 +141,51 @@ export default function DashboardPage() {
                 </button>
               )}
               
+              <button 
+                className="btn-outline bg-red-100 border-red-300 text-red-700" 
+                onClick={async () => {
+                  try {
+                    console.log('🧪 FORCE TEST: Calling test endpoint...')
+                    const response = await fetch('/api/v1/test-analysis-response')
+                    const testData = await response.json()
+                    console.log('🧪 FORCE TEST: Response:', testData)
+                    setAnalysisResult(testData)
+                    setShowUpload(false) 
+                    setShowResults(true)
+                    console.log('🧪 FORCE TEST: State set, should show results now')
+                  } catch (error) {
+                    console.error('🧪 FORCE TEST: Failed:', error)
+                    alert('Force test failed: ' + error)
+                  }
+                }}
+              >
+                🧪 FORCE TEST  
+              </button>
+              
+              <button 
+                className="btn-outline bg-yellow-100 border-yellow-300 text-yellow-700" 
+                onClick={() => {
+                  console.log('⚡ EMERGENCY: Forcing results display without API call...')
+                  const emergencyData = {
+                    success: true,
+                    speech_id: "emergency-test-id",
+                    analysis: {
+                      clarity_score: 9,
+                      structure_score: 8,
+                      filler_word_count: 2,
+                      feedback: "⚡ EMERGENCY TEST: If you can see this, the AnalysisResults component works. The issue is in the API call or state management flow."
+                    }
+                  }
+                  console.log('⚡ EMERGENCY: Setting result:', emergencyData)
+                  setAnalysisResult(emergencyData)
+                  setShowUpload(false)
+                  setShowResults(true)
+                  console.log('⚡ EMERGENCY: Done - results should be visible now')
+                }}
+              >
+                ⚡ EMERGENCY
+              </button>
+              
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium text-primary-600">
@@ -158,12 +203,16 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="container-responsive py-8">
-        {/* Debug info */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mb-4 p-2 bg-yellow-100 text-xs">
-            Debug: showResults={String(showResults)}, showUpload={String(showUpload)}, hasResult={String(!!analysisResult)}
-          </div>
-        )}
+        {/* Debug info - ALWAYS VISIBLE for debugging */}
+        <div className="mb-4 p-2 bg-blue-50 border border-blue-200 text-xs font-mono">
+          <strong>DEBUG STATUS:</strong> showResults={String(showResults)}, showUpload={String(showUpload)}, hasResult={String(!!analysisResult)}
+          {analysisResult && (
+            <div className="mt-1 text-green-700">
+              Result Keys: {Object.keys(analysisResult).join(', ')}
+              {analysisResult.analysis && ` | Analysis Keys: ${Object.keys(analysisResult.analysis).join(', ')}`}
+            </div>
+          )}
+        </div>
         
         {showResults ? (
           <AnalysisResults 
