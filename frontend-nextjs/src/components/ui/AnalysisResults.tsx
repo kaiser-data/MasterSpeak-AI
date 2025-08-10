@@ -35,10 +35,37 @@ export default function AnalysisResults({ result, onBack, onNewAnalysis }: Analy
     analysisKeys: result?.analysis ? Object.keys(result.analysis) : 'none'
   })
   
-  if (!result || !result.success) {
+  if (!result) {
+    console.log('❌ No result provided to AnalysisResults')
     return (
       <div className="card max-w-4xl mx-auto text-center py-8">
-        <p className="text-error-600">No analysis results available</p>
+        <p className="text-error-600">No analysis results available (no result object)</p>
+        <button onClick={onBack} className="btn-outline mt-4">
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  if (!result.success) {
+    console.log('❌ Result success is false:', result)
+    return (
+      <div className="card max-w-4xl mx-auto text-center py-8">
+        <p className="text-error-600">Analysis failed - success is false</p>
+        <pre className="text-xs text-left bg-gray-100 p-2 mt-2">{JSON.stringify(result, null, 2)}</pre>
+        <button onClick={onBack} className="btn-outline mt-4">
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  if (!result.analysis) {
+    console.log('❌ No analysis data in result:', result)
+    return (
+      <div className="card max-w-4xl mx-auto text-center py-8">
+        <p className="text-error-600">No analysis data found in response</p>
+        <pre className="text-xs text-left bg-gray-100 p-2 mt-2">{JSON.stringify(result, null, 2)}</pre>
         <button onClick={onBack} className="btn-outline mt-4">
           Back to Dashboard
         </button>

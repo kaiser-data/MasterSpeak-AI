@@ -205,26 +205,50 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
         })
       } else if (data.text) {
         // Text analysis
+        console.log('🚀 Sending text analysis request:', {
+          text: data.text.substring(0, 100) + '...',
+          prompt: data.prompt_type
+        })
         result = await speechAPI.analyzeText({
           text: data.text,
           prompt: data.prompt_type,
         })
       }
 
-      console.log('🔍 Full API Response:', result)
-      console.log('🔍 Response Structure:', {
-        success: result?.success,
-        speech_id: result?.speech_id,
-        analysis: result?.analysis,
-        keys: Object.keys(result || {})
-      })
+      console.log('🔍 Raw API Response received:', result)
+      console.log('🔍 Response type:', typeof result)
+      console.log('🔍 Response is object:', result && typeof result === 'object')
+      console.log('🔍 Response keys:', result ? Object.keys(result) : 'none')
+      
+      // Validate response structure
+      if (!result) {
+        console.error('❌ No result from API')
+        toast.error('No response from analysis service')
+        return
+      }
 
+      if (typeof result !== 'object') {
+        console.error('❌ Result is not an object:', typeof result)
+        toast.error('Invalid response format')
+        return
+      }
+
+      console.log('✅ Calling onAnalysisComplete with:', result)
       toast.success('Analysis completed successfully!')
-      onAnalysisComplete?.(result)
+      
+      // Force the callback to run
+      if (onAnalysisComplete) {
+        onAnalysisComplete(result)
+        console.log('✅ onAnalysisComplete called')
+      } else {
+        console.error('❌ onAnalysisComplete is undefined')
+      }
+      
       reset()
       removeFile()
     } catch (error: any) {
-      console.error('Analysis error:', error)
+      console.error('❌ Analysis error:', error)
+      console.error('❌ Error response:', error.response?.data)
       if (error.response?.data?.detail) {
         toast.error(error.response.data.detail)
       } else {

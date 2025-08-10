@@ -88,6 +88,24 @@ export default function DashboardPage() {
     setAnalysisResult(null)
   }
 
+  // Test function to simulate results
+  const testShowResults = () => {
+    const testResult = {
+      success: true,
+      speech_id: "test-id",
+      analysis: {
+        clarity_score: 8,
+        structure_score: 7,
+        filler_word_count: 3,
+        feedback: "This is a test feedback message."
+      }
+    }
+    console.log('🧪 Testing with mock data:', testResult)
+    setAnalysisResult(testResult)
+    setShowUpload(false)
+    setShowResults(true)
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -117,6 +135,12 @@ export default function DashboardPage() {
                 New Analysis
               </button>
               
+              {process.env.NODE_ENV === 'development' && (
+                <button className="btn-outline" onClick={testShowResults}>
+                  Test Results
+                </button>
+              )}
+              
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium text-primary-600">
@@ -134,6 +158,13 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="container-responsive py-8">
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-2 bg-yellow-100 text-xs">
+            Debug: showResults={String(showResults)}, showUpload={String(showUpload)}, hasResult={String(!!analysisResult)}
+          </div>
+        )}
+        
         {showResults ? (
           <AnalysisResults 
             result={analysisResult}
