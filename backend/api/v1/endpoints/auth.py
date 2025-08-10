@@ -45,21 +45,22 @@ def hash_password_simple(password: str) -> str:
         import hashlib
         return f"fallback_{hashlib.md5(password.encode()).hexdigest()}"
 
-@router.post("/register-simple", response_model=UserRead, summary="Simple Registration (Fallback)")
+@router.post("/register", response_model=UserRead, summary="User Registration")
 @create_rate_limit_decorator(RateLimits.AUTH_REGISTER)
-async def register_simple(
+async def register_user(
     request: Request,
     user_data: UserCreate,
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Simple user registration endpoint with bcrypt fallback
+    User registration endpoint with bcrypt fallback
+    Replaces the broken FastAPI Users registration
     """
     try:
         # Check if user already exists
         result = await session.execute(select(User).where(User.email == user_data.email))
         if result.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="User already exists")
+            raise HTTPException(status_code=400, detail="REGISTER_USER_ALREADY_EXISTS")
 
         # Create new user
         hashed_password = hash_password_simple(user_data.password)
@@ -76,7 +77,7 @@ async def register_simple(
         await session.commit()
         await session.refresh(user)
         
-        return UserRead.from_orm(user)
+        return UserRead.model_validate(user)
         
     except HTTPException:
         raise
@@ -128,7 +129,7 @@ except Exception:
 
 # Include the routers
 router.include_router(auth_jwt_router, prefix="/jwt", tags=["auth"])
-router.include_router(register_router, tags=["auth"])  
+# router.include_router(register_router, tags=["auth"])  # DISABLED: FastAPI Users registration broken due to bcrypt
 router.include_router(reset_password_router, tags=["auth"])
 router.include_router(verify_router, tags=["auth"])
 router.include_router(users_router, prefix="/users", tags=["users"])
