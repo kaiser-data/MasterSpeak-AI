@@ -64,7 +64,6 @@ async def get_user_analyses_alias(
 @router.post("/simple-text")
 async def simple_text_analysis(
     text: str = Form(...),
-    user_id: Optional[str] = Form(None),
     prompt_type: str = Form("default")
 ):
     """Simple text analysis endpoint that works without complex dependencies"""

@@ -202,14 +202,12 @@ export default function SpeechAnalysisUpload({ userId, onAnalysisComplete }: Spe
         // File upload
         result = await speechAPI.uploadAndAnalyze({
           file: data.file,
-          user_id: userId,
           prompt_type: data.prompt_type,
         })
       } else if (data.text) {
         // Text analysis
         result = await speechAPI.analyzeText({
           text: data.text,
-          user_id: userId,
           prompt_type: data.prompt_type,
         })
       }

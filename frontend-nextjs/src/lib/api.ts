@@ -145,12 +145,10 @@ export const authAPI = {
 export const speechAPI = {
   analyzeText: async (data: {
     text: string
-    user_id: string
     prompt_type: string
   }) => {
     const formData = new FormData()
     formData.append('text', data.text)
-    formData.append('user_id', data.user_id)
     formData.append('prompt_type', data.prompt_type)
 
     const response = await api.post('/analysis/simple-text', formData, {
@@ -163,12 +161,10 @@ export const speechAPI = {
 
   uploadAndAnalyze: async (data: {
     file: File
-    user_id: string
     prompt_type: string
   }) => {
     const formData = new FormData()
     formData.append('file', data.file)
-    formData.append('user_id', data.user_id)
     formData.append('prompt_type', data.prompt_type)
 
     const response = await api.post('/analysis/upload', formData, {
