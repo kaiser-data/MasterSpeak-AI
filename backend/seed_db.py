@@ -1,7 +1,7 @@
 # backend/seed_db.py
 
 from backend.database.models import User, Speech, SpeechAnalysis, SourceType
-from backend.database.database import engine, get_session
+from backend.database.database import engine, AsyncSessionLocal
 from sqlmodel import SQLModel, select
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
@@ -23,7 +23,7 @@ async def seed_database():
         logger.info("Starting database seeding...")
 
         # Check if database is already seeded
-        async with get_session() as session:
+        async with AsyncSessionLocal() as session:
             result = await session.execute(select(User).limit(1))
             if result.first():
                 logger.info("Database already seeded, skipping...")
@@ -55,7 +55,7 @@ async def seed_database():
         ]
 
         # Create users
-        async with get_session() as session:
+        async with AsyncSessionLocal() as session:
             for user_data in users:
                 user = User(**user_data)
                 session.add(user)
