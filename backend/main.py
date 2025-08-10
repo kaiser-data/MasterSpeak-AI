@@ -114,7 +114,7 @@ async def lifespan(app: FastAPI):
 # ── CORS (edit ALLOWED_ORIGINS via env) ────────────────────────────────────────
 # Example: ALLOWED_ORIGINS="https://<VERCEL_DOMAIN>,http://localhost:3000"
 ALLOWED_ORIGINS = [
-    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://master-speak-ai.vercel.app").split(",") if o.strip()
 ]
 
 app = FastAPI(
