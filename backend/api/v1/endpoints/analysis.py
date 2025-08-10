@@ -60,33 +60,14 @@ async def parse_text_analysis(request: Request) -> TextAnalysisIn:
         content_type = request.headers.get("content-type", "")
         
         if content_type and content_type.startswith("multipart/form-data"):
-            # Use the buffered body from middleware
-            if hasattr(request.state, 'body'):
-                # Recreate the request with buffered body
-                from starlette.requests import Request as StarletteRequest
-                from io import BytesIO
-                
-                # Create a new receive callable with the buffered body
-                async def receive():
-                    return {"type": "http.request", "body": request.state.body, "more_body": False}
-                
-                temp_request = StarletteRequest(request.scope, receive)
-                form = await temp_request.form()
-            else:
-                form = await request.form()
-                
+            form = await request.form()
             data = {
                 "text": form.get("text"),
                 "user_id": form.get("user_id"),
-                "prompt_type": form.get("prompt_type") or "default"
+                "prompt_type": form.get("prompt_type", "default")
             }
         else:
-            # Handle JSON
-            if hasattr(request.state, 'body'):
-                import json
-                data = json.loads(request.state.body.decode())
-            else:
-                data = await request.json()
+            data = await request.json()
         
         return TextAnalysisIn(**data)
     except ValidationError as e:
