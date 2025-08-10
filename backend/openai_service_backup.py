@@ -15,6 +15,14 @@ from backend.schemas.analysis_schema import OpenAIAnalysisResponse
 
 logger = logging.getLogger(__name__)
 
+# Models that support response_format json_object
+SUPPORTED_JSON_RESPONSE_MODELS = {
+    "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4-turbo-preview"
+}
+
+# Get model from settings with fallback
+MODEL = getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo")
+
 # Initialize the client
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -27,16 +35,22 @@ async def analyze_text_with_gpt_simple(text: str, prompt_type: str = "default") 
         
         logger.info(f"Sending simple request to OpenAI (prompt type: {prompt_type})...")
         
-        # Try with basic model and no response_format
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",  # Specific stable version
-            messages=[
+        # Build request parameters
+        kwargs = {
+            "model": MODEL,
+            "messages": [
                 {"role": "system", "content": "You are an expert speech analyst. Respond with valid JSON containing exactly these fields: clarity_score (1-10), structure_score (1-10), filler_words_rating (1-10), feedback (string)."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.3,
-            max_tokens=400
-        )
+            "temperature": 0.3,
+            "max_tokens": 400
+        }
+        
+        # Only add response_format for models that support it
+        if MODEL in SUPPORTED_JSON_RESPONSE_MODELS:
+            kwargs["response_format"] = {"type": "json_object"}
+        
+        response = client.chat.completions.create(**kwargs)
         
         analysis_content = response.choices[0].message.content.strip()
         logger.info(f"Raw OpenAI response: {analysis_content}")

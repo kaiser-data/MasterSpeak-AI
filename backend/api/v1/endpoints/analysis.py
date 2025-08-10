@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 async def analyze_text(
     request: Request,
     text: str = Form(..., description="Text content to analyze"),
-    user_id: UUID = Form(..., description="ID of the user performing the analysis"),
+    user_id: Optional[UUID] = Form(None, description="ID of the user performing the analysis"),
     prompt_type: str = Form("default", description="Type of analysis prompt to use"),
     session: AsyncSession = Depends(get_session)
 ) -> AnalysisResponse:
@@ -61,18 +61,19 @@ async def analyze_text(
         AnalysisResponse: Analysis results with scores and feedback
     """
     try:
-        # Verify user exists
-        result = await session.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        # Verify user exists if user_id is provided
+        if user_id:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
 
         # Calculate basic metrics
         word_count = len(text.split())
         
         # Create and save Speech record
         speech = Speech(
-            user_id=user_id,
+            user_id=user_id,  # Can be None for anonymous
             title=f"Text Analysis {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
             content=text,
             source_type=SourceType.TEXT,
@@ -115,7 +116,9 @@ async def analyze_text(
         raise
     except Exception as e:
         logger.error(f"Error in analyze_text: {str(e)}")
-        await session.rollback()
+        # Only rollback if transaction is active
+        if session.in_transaction():
+            await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload", response_model=AnalysisResponse, summary="Upload and Analyze File")
@@ -123,7 +126,7 @@ async def analyze_text(
 async def upload_and_analyze(
     request: Request,
     file: UploadFile = File(..., description="Text file to upload and analyze"),
-    user_id: UUID = Form(..., description="ID of the user performing the analysis"),
+    user_id: Optional[UUID] = Form(None, description="ID of the user performing the analysis"),
     prompt_type: str = Form("default", description="Type of analysis prompt to use"),
     session: AsyncSession = Depends(get_session)
 ) -> AnalysisResponse:

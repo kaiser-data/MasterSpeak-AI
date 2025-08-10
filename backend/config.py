@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     
     # API Keys
     OPENAI_API_KEY: str
+    OPENAI_MODEL: str = "gpt-3.5-turbo"  # Default model, can be overridden
     
     # Security settings
     SECRET_KEY: str  # For JWT token generation/validation

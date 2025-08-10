@@ -8,6 +8,7 @@ from backend.config import settings
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -39,16 +40,11 @@ AsyncSessionLocal = sessionmaker(
     autoflush=False
 )
 
-@asynccontextmanager
-async def get_session():
-    """Async context manager for database sessions."""
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency that yields database sessions."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
         finally:
             await session.close()
 

@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 from .endpoints import health, auth, analysis, users, speeches
+from .endpoints.analysis_alias import router as analysis_alias_router
 
 api_router = APIRouter()
 
@@ -37,4 +38,11 @@ api_router.include_router(
     speeches.router,
     prefix="/speeches",
     tags=["Speeches"]
+)
+
+# Analysis alias endpoints (for frontend compatibility)
+# Note: No prefix since it's already in the router definition
+api_router.include_router(
+    analysis_alias_router,
+    tags=["Analysis-Alias"]
 )
