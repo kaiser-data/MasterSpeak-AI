@@ -211,6 +211,14 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
         })
       }
 
+      console.log('🔍 Full API Response:', result)
+      console.log('🔍 Response Structure:', {
+        success: result?.success,
+        speech_id: result?.speech_id,
+        analysis: result?.analysis,
+        keys: Object.keys(result || {})
+      })
+
       toast.success('Analysis completed successfully!')
       onAnalysisComplete?.(result)
       reset()

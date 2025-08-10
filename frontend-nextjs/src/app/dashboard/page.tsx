@@ -68,10 +68,12 @@ export default function DashboardPage() {
   const [user] = useState(mockUser)
 
   const handleAnalysisComplete = (result: any) => {
-    console.log('Analysis completed:', result)
+    console.log('🎯 Dashboard received analysis result:', result)
+    console.log('🎯 Setting state - showResults will be:', true)
     setAnalysisResult(result)
     setShowUpload(false)
     setShowResults(true)
+    console.log('🎯 State updated')
     // In real app, refresh dashboard data
   }
 

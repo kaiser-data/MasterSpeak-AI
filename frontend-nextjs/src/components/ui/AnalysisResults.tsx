@@ -27,6 +27,14 @@ interface AnalysisResultsProps {
 }
 
 export default function AnalysisResults({ result, onBack, onNewAnalysis }: AnalysisResultsProps) {
+  console.log('📊 AnalysisResults received:', result)
+  console.log('📊 Result structure check:', {
+    hasResult: !!result,
+    success: result?.success,
+    hasAnalysis: !!result?.analysis,
+    analysisKeys: result?.analysis ? Object.keys(result.analysis) : 'none'
+  })
+  
   if (!result || !result.success) {
     return (
       <div className="card max-w-4xl mx-auto text-center py-8">
