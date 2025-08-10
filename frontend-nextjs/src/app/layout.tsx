@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'MasterSpeak AI',
-    template: '%s | MasterSpeak AI',
+    default: 'MasterSpeak AI v2.4 - DEPLOYMENT TEST',
+    template: '%s | MasterSpeak AI v2.4',
   },
   description: 'Advanced Speech Analysis with AI-powered feedback for improved communication skills',
   keywords: ['speech analysis', 'AI feedback', 'communication', 'presentation skills', 'public speaking'],
@@ -56,7 +56,23 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} antialiased`}>
         <Providers>
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+          {/* DEPLOYMENT TEST v2.4 - VERY VISIBLE */}
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: '#dc2626',
+            color: 'white',
+            textAlign: 'center',
+            padding: '8px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            zIndex: 9999
+          }}>
+            🚨 DEPLOYMENT TEST v2.4 - IF YOU SEE THIS, DEPLOYMENT WORKS! 🚨
+          </div>
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800" style={{paddingTop: '50px'}}>
             {children}
           </div>
         </Providers>
