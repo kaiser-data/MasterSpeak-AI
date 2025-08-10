@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 @router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
 @create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
+    request: Request,
     payload: AnalyzeTextRequest = Body(...),
     session: AsyncSession = Depends(get_session),
     current_user = Depends(get_current_user_optional),

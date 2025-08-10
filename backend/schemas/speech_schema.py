@@ -26,7 +26,7 @@ class SpeechRead(SpeechBase):
     timestamp: datetime = Field(..., description="Timestamp when the speech was created")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SpeechUpdate(SpeechBase):
     """
