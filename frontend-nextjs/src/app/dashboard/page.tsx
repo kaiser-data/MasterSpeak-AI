@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import SpeechAnalysisUpload from '@/components/ui/SpeechAnalysisUpload'
+import AnalysisResults from '@/components/ui/AnalysisResults'
 
 // Mock data - in real app this would come from API
 const mockUser = {
@@ -62,12 +63,21 @@ const mockRecentAnalyses = [
 
 export default function DashboardPage() {
   const [showUpload, setShowUpload] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState<any>(null)
   const [user] = useState(mockUser)
 
   const handleAnalysisComplete = (result: any) => {
     console.log('Analysis completed:', result)
+    setAnalysisResult(result)
     setShowUpload(false)
+    setShowResults(true)
     // In real app, refresh dashboard data
+  }
+
+  const handleBackToDashboard = () => {
+    setShowResults(false)
+    setAnalysisResult(null)
   }
 
   return (
@@ -116,7 +126,12 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="container-responsive py-8">
-        {showUpload ? (
+        {showResults ? (
+          <AnalysisResults 
+            result={analysisResult}
+            onBack={handleBackToDashboard}
+          />
+        ) : showUpload ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
