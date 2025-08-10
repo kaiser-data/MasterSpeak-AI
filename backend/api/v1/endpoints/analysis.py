@@ -54,11 +54,11 @@ async def analyze_text(
     request: Request,
     session: AsyncSession = Depends(get_session),
     current_user = Depends(get_current_user_optional),
-    # Try to accept both JSON and form data
-    payload: Optional[AnalyzeTextRequest] = Body(None),
+    # Accept both JSON and form data - FastAPI will handle content-type routing
     text: Optional[str] = Form(None),
-    user_id: Optional[str] = Form(None),
+    user_id: Optional[str] = Form(None), 
     prompt_type: Optional[str] = Form("default"),
+    payload: Optional[AnalyzeTextRequest] = Body(None, embed=False),
 ) -> AnalysisResponse:
     """
     Analyze text content and return AI-powered feedback
