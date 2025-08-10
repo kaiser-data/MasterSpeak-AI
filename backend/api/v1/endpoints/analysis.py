@@ -71,7 +71,7 @@ async def get_analysis_data(request: Request) -> dict:
         logger.error(f"Error parsing request: {e}")
         raise HTTPException(status_code=422, detail="Invalid request format")
 
-@router.post("/text", response_model=AnalysisResponse, summary="Analyze Text")
+@router.post("/text", summary="Analyze Text")
 @create_rate_limit_decorator(RateLimits.ANALYSIS_TEXT)
 async def analyze_text(
     request: Request,
@@ -164,20 +164,20 @@ async def analyze_text(
         await session.commit()
         await session.refresh(analysis)
 
-        # Create response
-        response = AnalysisResponse(
-            speech_id=speech.id,
-            analysis_id=analysis.id,
-            word_count=word_count,
-            clarity_score=analysis_result.clarity_score,
-            structure_score=analysis_result.structure_score,
-            filler_words_rating=analysis_result.filler_words_rating,
-            feedback=analysis_result.feedback or "",
-            created_at=analysis.created_at
-        )
+        # Create response in the format the frontend expects
+        response_data = {
+            "success": True,
+            "speech_id": str(speech.id),
+            "analysis": {
+                "clarity_score": analysis_result.clarity_score,
+                "structure_score": analysis_result.structure_score,
+                "filler_word_count": analysis_result.filler_words_rating,
+                "feedback": analysis_result.feedback or ""
+            }
+        }
         
         logger.info(f"Analysis completed successfully: speech_id={speech.id}")
-        return response
+        return JSONResponse(content=response_data)
 
     except HTTPException:
         raise
