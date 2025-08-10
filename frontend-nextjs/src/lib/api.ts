@@ -203,10 +203,12 @@ export const speechAPI = {
   analyzeText: async (data: {
     text: string
     prompt?: string
+    title?: string
   }) => {
     const payload = {
       text: data.text,
-      prompt: data.prompt || 'default'
+      prompt: data.prompt || 'default',
+      title: data.title
     }
 
     const response = await api.post('/analysis/text', payload, {

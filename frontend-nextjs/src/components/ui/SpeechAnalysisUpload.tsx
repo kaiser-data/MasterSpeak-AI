@@ -66,12 +66,14 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
     resolver: zodResolver(speechAnalysisSchema),
     defaultValues: {
       prompt_type: 'default',
+      title: '',
     },
   })
 
   const selectedFile = watch('file')
   const textContent = watch('text')
   const promptType = watch('prompt_type')
+  const title = watch('title')
 
   // File upload with dropzone
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -207,11 +209,13 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
         // Text analysis
         console.log('🚀 Sending text analysis request:', {
           text: data.text.substring(0, 100) + '...',
-          prompt: data.prompt_type
+          prompt: data.prompt_type,
+          title: data.title
         })
         result = await speechAPI.analyzeText({
           text: data.text,
           prompt: data.prompt_type,
+          title: data.title,
         })
       }
 
@@ -236,12 +240,16 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
       console.log('✅ Calling onAnalysisComplete with:', result)
       toast.success('Analysis completed successfully!')
       
-      // Force the callback to run
+      // Force the callback to run with a slight delay to ensure state updates
       if (onAnalysisComplete) {
-        onAnalysisComplete(result)
-        console.log('✅ onAnalysisComplete called')
+        console.log('✅ About to call onAnalysisComplete...')
+        setTimeout(() => {
+          onAnalysisComplete(result)
+          console.log('✅ onAnalysisComplete called with timeout')
+        }, 100)
       } else {
         console.error('❌ onAnalysisComplete is undefined')
+        alert('ERROR: onAnalysisComplete callback is missing!')
       }
       
       reset()
@@ -308,6 +316,24 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
               {label}
             </button>
           ))}
+        </div>
+
+        {/* Title field - always visible */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            Speech Title *
+          </label>
+          <input
+            {...register('title')}
+            type="text"
+            className="input-primary"
+            placeholder="Enter a title for your speech (e.g., 'Product Presentation', 'Team Meeting')"
+          />
+          {errors.title && (
+            <p className="mt-1 text-sm text-error-600 dark:text-error-400">
+              {errors.title.message}
+            </p>
+          )}
         </div>
 
         {/* Text input mode */}
@@ -541,7 +567,7 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
         {/* Submit button */}
         <button
           type="submit"
-          disabled={isAnalyzing || isSubmitting || (!textContent && !selectedFile)}
+          disabled={isAnalyzing || isSubmitting || (!textContent && !selectedFile) || !title}
           className="w-full btn-primary flex items-center justify-center py-3 text-lg"
         >
           {isAnalyzing || isSubmitting ? (

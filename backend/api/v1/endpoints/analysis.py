@@ -57,7 +57,8 @@ async def get_analysis_data(request: Request) -> dict:
             return {
                 "text": form.get("text"),
                 "user_id": form.get("user_id"), 
-                "prompt": form.get("prompt_type", "default")
+                "prompt": form.get("prompt_type", "default"),
+                "title": form.get("title")
             }
         else:
             # Assume JSON
@@ -65,7 +66,8 @@ async def get_analysis_data(request: Request) -> dict:
             return {
                 "text": data.get("text"),
                 "user_id": data.get("user_id"),
-                "prompt": data.get("prompt", "default")
+                "prompt": data.get("prompt", "default"),
+                "title": data.get("title")
             }
     except Exception as e:
         logger.error(f"Error parsing request: {e}")
@@ -94,6 +96,7 @@ async def analyze_text(
         text_content = data.get("text")
         prompt_value = data.get("prompt", "default")  
         user_id_value = data.get("user_id")
+        title_value = data.get("title")
             
         # Extract and validate text
         text_content = (text_content or "").strip()
@@ -135,9 +138,10 @@ async def analyze_text(
         word_count = len(text_content.split())
         
         # Create and save Speech record
+        speech_title = title_value or f"Text Analysis {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
         speech = Speech(
             user_id=final_user_id,  # Can be None for anonymous
-            title=f"Text Analysis {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            title=speech_title,
             content=text_content,
             source_type=SourceType.TEXT,
             created_at=datetime.utcnow()
