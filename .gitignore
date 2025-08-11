@@ -44,3 +44,17 @@ backend/database/test.db
 .DS_Store
 Thumbs.db
 
+# Next.js build output
+.next/
+out/
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build artifacts
+dist/
+build/

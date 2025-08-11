@@ -111,7 +111,7 @@ authAPI_client.interceptors.response.use(
     if (requestId) {
       console.error('❌ Auth Error X-Request-ID:', requestId)
       // Attach to error for UI display
-      error.requestId = requestId
+      ;(error as any).requestId = requestId
     }
     
     // Classify errors for better UX

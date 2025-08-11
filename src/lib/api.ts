@@ -111,7 +111,7 @@ authAPI_client.interceptors.response.use(
     if (requestId) {
       console.error('❌ Auth Error X-Request-ID:', requestId)
       // Attach to error for UI display
-      error.requestId = requestId
+      ;(error as any).requestId = requestId
     }
     
     // Classify errors for better UX
@@ -129,7 +129,7 @@ authAPI_client.interceptors.response.use(
     }
     
     if (error.response.status >= 400 && error.response.status < 500) {
-      const validationError = new Error(error.response.data?.detail || 'Validation error.')
+      const validationError = new Error((error.response.data as any)?.detail || 'Validation error.')
       validationError.name = 'ValidationError'
       throw validationError
     }
