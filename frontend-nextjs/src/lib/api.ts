@@ -105,42 +105,58 @@ authAPI_client.interceptors.response.use(
     }
     return response
   },
-  (error: AxiosError) => {
-    // Extract X-Request-ID from error response
-    const requestId = error.response?.headers['x-request-id']
-    if (requestId) {
-      console.error('❌ Auth Error X-Request-ID:', requestId)
-      // Attach to error for UI display
-      ;(error as any).requestId = requestId
-    }
-    
-    // Classify errors for better UX
-    if (!error.response) {
+  (error) => {
+    if (axios.isAxiosError(error)) {
+      // Extract X-Request-ID from error response
+      const requestId = error.response?.headers['x-request-id']
+      if (requestId) {
+        console.error('❌ Auth Error X-Request-ID:', requestId)
+        // Attach to error for UI display
+        ;(error as any).requestId = requestId
+      }
+      
+      const status = error.response?.status ?? 0;
+
       // CORS/preflight or network error
-      const corsError = new Error('Sign-in blocked by browser (CORS).')
-      corsError.name = 'CORSError'
-      throw corsError
+      if (!error.response) {
+        const corsError = new Error('Sign-in blocked by browser (CORS).')
+        corsError.name = 'CORSError'
+        throw corsError
+      }
+      
+      if (status === 401 || status === 403) {
+        const authError = new Error('Invalid credentials.')
+        authError.name = 'AuthError'
+        throw authError
+      }
+      
+      if (status >= 400 && status < 500) {
+        type APIErrorData = { detail?: string; message?: string; error?: string };
+        const data = (error.response?.data ?? {}) as APIErrorData;
+
+        const validationError = new Error(
+          data.detail ?? data.message ?? data.error ?? 'Validation error.'
+        );
+        validationError.name = 'ValidationError';
+        throw validationError;
+      }
+      
+      if (status >= 500) {
+        const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`)
+        serverError.name = 'ServerError'
+        throw serverError
+      }
+
+      // For other Axios errors, surface a readable message
+      const msg =
+        (error.response?.data as any)?.message ??
+        error.message ??
+        'Network error.';
+      throw new Error(msg);
     }
-    
-    if (error.response.status === 401 || error.response.status === 403) {
-      const authError = new Error('Invalid credentials.')
-      authError.name = 'AuthError'
-      throw authError
-    }
-    
-    if (error.response.status >= 400 && error.response.status < 500) {
-      const validationError = new Error(error.response.data?.detail || 'Validation error.')
-      validationError.name = 'ValidationError'
-      throw validationError
-    }
-    
-    if (error.response.status >= 500) {
-      const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`)
-      serverError.name = 'ServerError'
-      throw serverError
-    }
-    
-    throw error
+
+    // Non-Axios errors
+    throw new Error((error as Error)?.message ?? 'Unknown error.');
   }
 )
 
