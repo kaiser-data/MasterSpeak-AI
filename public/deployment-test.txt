@@ -1,4 +1,5 @@
-DEPLOYMENT TEST v2.5 - 2025-08-11 00:15 UTC - CACHE BUST
+DEPLOYMENT TEST v2.6 - 2025-08-11 00:25 UTC - TYPESCRIPT FIX
 This file should be accessible at: /deployment-test.txt
 If you can see this file, the deployment is working.
 Backend confirmed working at: https://masterspeak-ai-production.up.railway.app/force-test
+TypeScript searchParams fix applied to all files.
