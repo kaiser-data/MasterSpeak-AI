@@ -105,58 +105,45 @@ authAPI_client.interceptors.response.use(
     }
     return response
   },
-  (error) => {
-    if (axios.isAxiosError(error)) {
-      // Extract X-Request-ID from error response
-      const requestId = error.response?.headers['x-request-id']
-      if (requestId) {
-        console.error('❌ Auth Error X-Request-ID:', requestId)
-        // Attach to error for UI display
-        ;(error as any).requestId = requestId
-      }
-      
-      const status = error.response?.status ?? 0;
-
-      // CORS/preflight or network error
-      if (!error.response) {
-        const corsError = new Error('Sign-in blocked by browser (CORS).')
-        corsError.name = 'CORSError'
-        throw corsError
-      }
-      
-      if (status === 401 || status === 403) {
-        const authError = new Error('Invalid credentials.')
-        authError.name = 'AuthError'
-        throw authError
-      }
-      
-      if (status >= 400 && status < 500) {
-        type APIErrorData = { detail?: string; message?: string; error?: string };
-        const data = (error.response?.data ?? {}) as APIErrorData;
-
-        const validationError = new Error(
-          data.detail ?? data.message ?? data.error ?? 'Validation error.'
-        );
-        validationError.name = 'ValidationError';
-        throw validationError;
-      }
-      
-      if (status >= 500) {
-        const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`)
-        serverError.name = 'ServerError'
-        throw serverError
-      }
-
-      // For other Axios errors, surface a readable message
-      const msg =
-        (error.response?.data as any)?.message ??
-        error.message ??
-        'Network error.';
-      throw new Error(msg);
+  (error: unknown) => {
+    if (!axios.isAxiosError(error)) {
+      throw new Error((error as Error)?.message ?? 'Unknown error.');
     }
 
-    // Non-Axios errors
-    throw new Error((error as Error)?.message ?? 'Unknown error.');
+    const requestId = error.response?.headers?.['x-request-id'];
+    if (requestId) {
+      console.error('❌ Auth Error X-Request-ID:', requestId);
+      (error as any).requestId = requestId;
+    }
+
+    // Network/CORS (no response object)
+    if (!error.response) {
+      const corsError = new Error('Network error (possibly CORS).');
+      corsError.name = 'CORSError';
+      throw corsError;
+    }
+
+    const status = error.response.status ?? 0;
+    type APIErrorData = { detail?: string; message?: string; error?: string };
+    const data = (error.response.data ?? {}) as APIErrorData;
+    const msg = data.detail ?? data.message ?? data.error;
+
+    if (status === 401 || status === 403) {
+      const authError = new Error('Invalid credentials.');
+      authError.name = 'AuthError';
+      throw authError;
+    }
+    if (status >= 400 && status < 500) {
+      const validationError = new Error(msg ?? 'Validation error.');
+      validationError.name = 'ValidationError';
+      throw validationError;
+    }
+    if (status >= 500) {
+      const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`);
+      serverError.name = 'ServerError';
+      throw serverError;
+    }
+    throw error;
   }
 )
 
