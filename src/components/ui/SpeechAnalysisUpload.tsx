@@ -92,7 +92,12 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
       'application/pdf': ['.pdf'],
       'audio/mpeg': ['.mp3'],
       'audio/wav': ['.wav'],
+      'audio/wave': ['.wav'],
+      'audio/x-wav': ['.wav'],
       'audio/mp4': ['.m4a'],
+      'audio/x-m4a': ['.m4a'],
+      'audio/webm': ['.webm'],
+      'audio/ogg': ['.ogg'],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024, // 10MB
@@ -393,7 +398,7 @@ export default function SpeechAnalysisUpload({ onAnalysisComplete }: SpeechAnaly
                     Drag and drop a file, or click to browse
                   </p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Supported formats: TXT, PDF, MP3, WAV, M4A (max 10MB)
+                    Supported formats: TXT, PDF, MP3, WAV, M4A, WebM, OGG (max 10MB)
                   </p>
                 </div>
               ) : (
