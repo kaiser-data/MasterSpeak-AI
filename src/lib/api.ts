@@ -15,7 +15,7 @@ export const api = axios.create({
 
 // Create auth-specific client with credentials for cookie handling
 export const authAPI_client = axios.create({
-  baseURL: '/api',  // Direct to auth endpoints via rewrites
+  baseURL: '/api/v1',  // Use same base as main API client
   timeout: 30000,
   withCredentials: true,  // Include cookies for auth
   headers: {
