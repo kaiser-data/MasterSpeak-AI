@@ -105,51 +105,43 @@ authAPI_client.interceptors.response.use(
     }
     return response
   },
-(error: unknown) => {
-  if (!axios.isAxiosError(error)) {
-    return Promise.reject(new Error((error as Error)?.message ?? 'Unknown error.'));
+  (error: AxiosError) => {
+    // Extract X-Request-ID from error response
+    const requestId = error.response?.headers['x-request-id']
+    if (requestId) {
+      console.error('❌ Auth Error X-Request-ID:', requestId)
+      // Attach to error for UI display
+      ;(error as any).requestId = requestId
+    }
+    
+    // Classify errors for better UX
+    if (!error.response) {
+      // CORS/preflight or network error
+      const corsError = new Error('Sign-in blocked by browser (CORS).')
+      corsError.name = 'CORSError'
+      throw corsError
+    }
+    
+    if (error.response.status === 401 || error.response.status === 403) {
+      const authError = new Error('Invalid credentials.')
+      authError.name = 'AuthError'
+      throw authError
+    }
+    
+    if (error.response.status >= 400 && error.response.status < 500) {
+      const validationError = new Error((error.response.data as any)?.detail || 'Validation error.')
+      validationError.name = 'ValidationError'
+      throw validationError
+    }
+    
+    if (error.response.status >= 500) {
+      const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`)
+      serverError.name = 'ServerError'
+      throw serverError
+    }
+    
+    throw error
   }
-
-  const requestId = error.response?.headers?.['x-request-id'];
-  const status = error.response?.status ?? 0;
-
-  type APIErrorObj = { detail?: string; message?: string; error?: string };
-  const raw = error.response?.data as unknown;
-
-  let msg: string | undefined;
-  if (raw && typeof raw === 'object') {
-    const data = raw as APIErrorObj;
-    msg = data.detail ?? data.message ?? data.error;
-  } else if (typeof raw === 'string') {
-    msg = raw;
-  }
-
-  if (!error.response) {
-    const corsError = new Error('Sign-in blocked by browser (CORS).');
-    corsError.name = 'CORSError';
-    return Promise.reject(corsError);
-  }
-
-  if (status === 401 || status === 403) {
-    const authError = new Error('Invalid credentials.');
-    authError.name = 'AuthError';
-    return Promise.reject(authError);
-  }
-
-  if (status >= 400 && status < 500) {
-    const validationError = new Error(msg ?? 'Validation error.');
-    validationError.name = 'ValidationError';
-    return Promise.reject(validationError);
-  }
-
-  if (status >= 500) {
-    const serverError = new Error(`Server error${requestId ? ` (ID: ${requestId})` : ''}`);
-    serverError.name = 'ServerError';
-    return Promise.reject(serverError);
-  }
-
-  return Promise.reject(new Error(msg ?? error.message ?? 'Network error.'));
-}
 )
 
 // API functions
