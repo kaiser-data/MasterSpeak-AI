@@ -38,8 +38,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend-nextjs
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - "3000:3000"
     environment:
