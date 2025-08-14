@@ -1,7 +1,7 @@
 # backend/api/v1/endpoints/transcription.py
 import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
 
@@ -9,7 +9,7 @@ from backend.database.database import get_session
 from backend.database.models import Speech, User
 from backend.transcription_service import transcribe_audio_file, is_audio_file, get_supported_audio_formats
 from backend.api.v1.endpoints.auth import get_current_user
-from backend.schemas.speech_schema import SpeechResponse
+from backend.schemas.speech_schema import SpeechRead
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,7 +18,7 @@ router = APIRouter()
 async def transcribe_audio(
     file: UploadFile = File(...),
     current_user: Optional[User] = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Transcribe an audio file using OpenAI Whisper API.
@@ -63,12 +63,12 @@ async def transcribe_audio(
             detail="Failed to transcribe audio file"
         )
 
-@router.post("/transcribe-and-save", response_model=SpeechResponse)
+@router.post("/transcribe-and-save", response_model=SpeechRead)
 async def transcribe_and_save_speech(
     file: UploadFile = File(...),
     title: str = None,
     current_user: Optional[User] = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Transcribe an audio file and save it as a Speech record.
@@ -107,12 +107,12 @@ async def transcribe_and_save_speech(
         )
         
         session.add(speech)
-        session.commit()
-        session.refresh(speech)
+        await session.commit()
+        await session.refresh(speech)
         
         logger.info(f"Speech record created with transcription: {speech.id}")
         
-        return SpeechResponse.from_orm(speech)
+        return SpeechRead.model_validate(speech)
         
     except HTTPException:
         raise
@@ -127,7 +127,7 @@ async def transcribe_and_save_speech(
 async def get_speech_transcription(
     speech_id: UUID,
     current_user: Optional[User] = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Get the transcription for a specific speech record.
