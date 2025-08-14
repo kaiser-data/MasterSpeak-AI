@@ -186,6 +186,23 @@ async def get_session_compat(
     """
     return user
 
+# Additional compatibility endpoints to prevent 404s from browser extensions
+@router.post("/_log", summary="Log Endpoint (Compatibility)")
+async def log_compat(request: Request):
+    """
+    Compatibility endpoint for log requests from browser extensions
+    Returns empty success response
+    """
+    return {"status": "ok", "message": "Log endpoint - no action taken"}
+
+@router.get("/_log", summary="Log Endpoint (Compatibility)")
+async def log_compat_get(request: Request):
+    """
+    Compatibility endpoint for log requests from browser extensions
+    Returns empty success response
+    """
+    return {"status": "ok", "message": "Log endpoint - no action taken"}
+
 # Include FastAPIUsers authentication routes with rate limiting applied at router level
 auth_jwt_router = fastapi_users.get_auth_router(auth_backend)
 register_router = fastapi_users.get_register_router(UserRead, UserCreate)

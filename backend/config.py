@@ -14,12 +14,29 @@ ENV_FILE = PROJECT_ROOT / '.env'
 # Load .env file
 load_dotenv(ENV_FILE)
 
-# Only print debug info in development
+# Print debug info for database configuration
+import logging
+logger = logging.getLogger(__name__)
+
+# Always log database configuration for debugging
+db_url_env = os.getenv('DATABASE_URL')
+railway_env = os.getenv('RAILWAY_ENVIRONMENT')
+port_env = os.getenv('PORT')
+
+logger.info(f"DATABASE_URL from env: {'✓' if db_url_env else '✗'}")
+logger.info(f"RAILWAY_ENVIRONMENT: {'✓' if railway_env else '✗'}")
+logger.info(f"PORT: {'✓' if port_env else '✗'}")
+
+if db_url_env:
+    # Hide password but show general URL structure
+    safe_url = db_url_env.split('@')[1] if '@' in db_url_env else 'local'
+    logger.info(f"Using PostgreSQL: {safe_url}")
+else:
+    logger.warning("No DATABASE_URL found, falling back to SQLite")
+
+# Only print additional debug info in development
 if os.getenv('ENV', 'development') == 'development':
-    import logging
-    logger = logging.getLogger(__name__)
     logger.debug(f"Looking for .env file at: {ENV_FILE}")
-    logger.debug(f"Environment check - DATABASE_URL: {'✓' if 'DATABASE_URL' in os.environ else '✗'}")
     logger.debug(f"Environment check - SECRET_KEY: {'✓' if 'SECRET_KEY' in os.environ else '✗'}")
     logger.debug(f"Environment check - OPENAI_API_KEY: {'✓' if 'OPENAI_API_KEY' in os.environ else '✗'}")
 
