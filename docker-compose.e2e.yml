@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     environment:
       - ENV=testing
-      - DATABASE_URL=sqlite:///./test_data/masterspeak_test.db
+      - DATABASE_URL=sqlite:////app/test_data/masterspeak_test.db
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SECRET_KEY=test-secret-key-for-e2e-testing-only
       - RESET_SECRET=test-reset-secret-for-e2e-testing-only
