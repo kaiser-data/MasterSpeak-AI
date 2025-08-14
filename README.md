@@ -253,15 +253,23 @@ python test_transcription.py      # Test transcription feature
    - Link repository to Railway
    - Enable automatic deployments
 
-2. **Set environment variables**:
+2. **Add PostgreSQL Database**:
+   - Add a PostgreSQL database service to your Railway project
+   - Copy the DATABASE_URL connection string
+
+3. **Set environment variables**:
    ```bash
-   DATABASE_URL=postgresql://user:password@host:port/dbname
+   DATABASE_URL=postgresql://user:password@host:port/dbname  # From Railway PostgreSQL
    OPENAI_API_KEY=your_openai_api_key
    SECRET_KEY=your_secret_key
+   RESET_SECRET=your_reset_secret
+   VERIFICATION_SECRET=your_verification_secret
    ENV=production
    ```
 
-3. **Deploy**: Automatic on Git push
+4. **Deploy**: Automatic on Git push
+
+⚠️ **Important**: Railway requires PostgreSQL for persistent data storage. SQLite uses ephemeral `/tmp` storage that gets deleted on each deployment.
 
 ### Manual Deployment
 
@@ -289,6 +297,8 @@ python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
 ## 📝 Recent Updates
 
+- ✅ **Database Persistence Fix** - Resolved Railway database deletion issue with PostgreSQL support
+- ✅ **Session Endpoint Fix** - Added compatibility endpoint for legacy session requests
 - ✅ **Audio Transcription** - Added OpenAI Whisper integration for speech-to-text
 - ✅ **Enhanced Audio Support** - WAV, MP3, M4A, WebM, OGG file support
 - ✅ **Authentication Fixes** - Resolved signup/login 404 issues

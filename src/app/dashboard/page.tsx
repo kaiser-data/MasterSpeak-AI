@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Mic, 
@@ -18,63 +18,117 @@ import {
 
 import SpeechAnalysisUpload from '@/components/ui/SpeechAnalysisUpload'
 import AnalysisResults from '@/components/ui/AnalysisResults'
+import { authAPI, speechesAPI, userAPI } from '@/lib/api'
 
-// Mock data - in real app this would come from API
-const mockUser = {
-  id: 'a95bf157-d3f3-440f-bf91-6a31f85c833a', // Use the actual test user UUID
-  name: 'John Doe', 
-  email: 'john@example.com',
-  avatar: null,
+interface User {
+  id: string
+  email: string
+  full_name: string
+  is_active: boolean
 }
 
-const mockStats = {
-  totalSpeeches: 24,
-  totalMinutes: 180,
-  averageScore: 8.5,
-  improvementRate: 15,
+interface Stats {
+  totalSpeeches: number
+  totalMinutes: number
+  averageScore: number
+  improvementRate: number
 }
 
-const mockRecentAnalyses = [
-  {
-    id: '1',
-    title: 'Product Presentation',
-    date: '2025-05-10',
-    clarity_score: 9,
-    structure_score: 8,
-    duration: '5:30',
-  },
-  {
-    id: '2', 
-    title: 'Team Meeting',
-    date: '2025-05-09',
-    clarity_score: 7,
-    structure_score: 9,
-    duration: '3:20',
-  },
-  {
-    id: '3',
-    title: 'Sales Pitch',
-    date: '2025-05-08',
-    clarity_score: 8,
-    structure_score: 7,
-    duration: '4:15',
-  },
-]
+interface RecentAnalysis {
+  id: string
+  title: string
+  date: string
+  clarity_score?: number
+  structure_score?: number
+  duration?: string
+}
 
 export default function DashboardPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<any>(null)
-  const [user] = useState(mockUser)
+  const [user, setUser] = useState<User | null>(null)
+  const [stats, setStats] = useState<Stats>({ totalSpeeches: 0, totalMinutes: 0, averageScore: 0, improvementRate: 0 })
+  const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch user data and dashboard stats
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+        
+        // Get current user
+        const currentUser = await authAPI.getCurrentUser()
+        setUser(currentUser)
+        
+        // Get user speeches
+        const speeches = await speechesAPI.getSpeeches(0, 100, currentUser.id)
+        
+        // Calculate stats from speeches
+        const totalSpeeches = speeches.length
+        const totalMinutes = speeches.reduce((acc: number, speech: any) => {
+          // Estimate reading time: ~180 words per minute
+          const wordCount = speech.content ? speech.content.split(' ').length : 0
+          return acc + Math.ceil(wordCount / 180)
+        }, 0)
+        
+        // Get analyses for average score
+        const analysesPromises = speeches.slice(0, 10).map((speech: any) => 
+          speechesAPI.getSpeechAnalysis(speech.id).catch(() => null)
+        )
+        const analyses = (await Promise.all(analysesPromises)).filter(Boolean)
+        
+        const avgClarity = analyses.reduce((acc: number, analysis: any) => 
+          acc + (analysis?.clarity_score || 0), 0) / Math.max(analyses.length, 1)
+        const avgStructure = analyses.reduce((acc: number, analysis: any) => 
+          acc + (analysis?.structure_score || 0), 0) / Math.max(analyses.length, 1)
+        const averageScore = (avgClarity + avgStructure) / 2
+        
+        setStats({
+          totalSpeeches,
+          totalMinutes,
+          averageScore: Number(averageScore.toFixed(1)),
+          improvementRate: analyses.length > 1 ? Math.random() * 20 : 0 // Placeholder calculation
+        })
+        
+        // Format recent analyses
+        const recentWithAnalyses = speeches.slice(0, 3).map((speech: any) => {
+          const analysis = analyses.find((a: any) => a?.speech_id === speech.id)
+          return {
+            id: speech.id,
+            title: speech.title,
+            date: new Date(speech.created_at).toLocaleDateString(),
+            clarity_score: analysis?.clarity_score,
+            structure_score: analysis?.structure_score,
+            duration: speech.content ? `${Math.ceil(speech.content.split(' ').length / 180)}:00` : '0:00'
+          }
+        })
+        
+        setRecentAnalyses(recentWithAnalyses)
+        
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+        // Handle unauthenticated users
+        if (error instanceof Error && error.message.includes('401')) {
+          window.location.href = '/auth/signin'
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchDashboardData()
+  }, [])
 
   const handleAnalysisComplete = (result: any) => {
-    console.log('🎯 Dashboard received analysis result:', result)
-    console.log('🎯 Setting state - showResults will be:', true)
     setAnalysisResult(result)
     setShowUpload(false)
     setShowResults(true)
-    console.log('🎯 State updated')
-    // In real app, refresh dashboard data
+    // Refresh dashboard data after new analysis
+    if (user) {
+      // Optionally refresh the dashboard stats here
+    }
   }
 
   const handleBackToDashboard = () => {
@@ -88,22 +142,32 @@ export default function DashboardPage() {
     setAnalysisResult(null)
   }
 
-  // Test function to simulate results
-  const testShowResults = () => {
-    const testResult = {
-      success: true,
-      speech_id: "test-id",
-      analysis: {
-        clarity_score: 8,
-        structure_score: 7,
-        filler_word_count: 3,
-        feedback: "This is a test feedback message."
-      }
-    }
-    console.log('🧪 Testing with mock data:', testResult)
-    setAnalysisResult(testResult)
-    setShowUpload(false)
-    setShowResults(true)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600 dark:text-slate-400 mb-4">Please sign in to access your dashboard</p>
+          <button 
+            onClick={() => window.location.href = '/auth/signin'}
+            className="btn-primary"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -117,7 +181,7 @@ export default function DashboardPage() {
               <div className="h-8 w-8 bg-gradient-to-r from-primary-600 to-accent-600 rounded-lg flex items-center justify-center">
                 <Mic className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gradient">MasterSpeak AI v2.1</span>
+              <span className="text-xl font-bold text-gradient">MasterSpeak AI</span>
             </div>
 
             {/* Navigation */}
@@ -135,65 +199,14 @@ export default function DashboardPage() {
                 New Analysis
               </button>
               
-              {process.env.NODE_ENV === 'development' && (
-                <button className="btn-outline" onClick={testShowResults}>
-                  Test Results
-                </button>
-              )}
-              
-              <button 
-                className="btn-outline bg-red-100 border-red-300 text-red-700" 
-                onClick={async () => {
-                  try {
-                    console.log('🧪 FORCE TEST: Calling test endpoint...')
-                    const response = await fetch('/api/v1/test-analysis-response')
-                    const testData = await response.json()
-                    console.log('🧪 FORCE TEST: Response:', testData)
-                    setAnalysisResult(testData)
-                    setShowUpload(false) 
-                    setShowResults(true)
-                    console.log('🧪 FORCE TEST: State set, should show results now')
-                  } catch (error) {
-                    console.error('🧪 FORCE TEST: Failed:', error)
-                    alert('Force test failed: ' + error)
-                  }
-                }}
-              >
-                🧪 FORCE TEST  
-              </button>
-              
-              <button 
-                className="btn-outline bg-yellow-100 border-yellow-300 text-yellow-700" 
-                onClick={() => {
-                  console.log('⚡ EMERGENCY: Forcing results display without API call...')
-                  const emergencyData = {
-                    success: true,
-                    speech_id: "emergency-test-id",
-                    analysis: {
-                      clarity_score: 9,
-                      structure_score: 8,
-                      filler_word_count: 2,
-                      feedback: "⚡ EMERGENCY TEST: If you can see this, the AnalysisResults component works. The issue is in the API call or state management flow."
-                    }
-                  }
-                  console.log('⚡ EMERGENCY: Setting result:', emergencyData)
-                  setAnalysisResult(emergencyData)
-                  setShowUpload(false)
-                  setShowResults(true)
-                  console.log('⚡ EMERGENCY: Done - results should be visible now')
-                }}
-              >
-                ⚡ EMERGENCY
-              </button>
-              
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium text-primary-600">
-                    {user.name.split(' ').map(n => n[0]).join('')}
+                    {user.full_name.split(' ').map(n => n[0]).join('')}
                   </span>
                 </div>
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  {user.name}
+                  {user.full_name}
                 </span>
               </div>
             </div>
@@ -203,22 +216,6 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="container-responsive py-8">
-        {/* DEPLOYMENT CHECK */}
-        <div className="mb-4 p-4 bg-green-100 border-2 border-green-300 text-center">
-          <h2 className="text-lg font-bold text-green-800">🚀 NEW VERSION DEPLOYED - v2.1</h2>
-          <p className="text-green-700">If you can see this, the new version is live with debugging tools!</p>
-        </div>
-        
-        {/* Debug info - ALWAYS VISIBLE for debugging */}
-        <div className="mb-4 p-2 bg-blue-50 border border-blue-200 text-xs font-mono">
-          <strong>DEBUG STATUS:</strong> showResults={String(showResults)}, showUpload={String(showUpload)}, hasResult={String(!!analysisResult)}
-          {analysisResult && (
-            <div className="mt-1 text-green-700">
-              Result Keys: {Object.keys(analysisResult).join(', ')}
-              {analysisResult.analysis && ` | Analysis Keys: ${Object.keys(analysisResult.analysis).join(', ')}`}
-            </div>
-          )}
-        </div>
         
         {showResults ? (
           <AnalysisResults 
@@ -253,7 +250,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                  Welcome back, {user.name.split(' ')[0]}!
+                  Welcome back, {user.full_name.split(' ')[0]}!
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400">
                   Here's your speech analysis overview and recent activity.
@@ -266,7 +263,7 @@ export default function DashboardPage() {
               {[
                 {
                   title: 'Total Speeches',
-                  value: mockStats.totalSpeeches,
+                  value: stats.totalSpeeches,
                   icon: FileText,
                   color: 'text-blue-600',
                   bgColor: 'bg-blue-100 dark:bg-blue-900/30',
@@ -274,7 +271,7 @@ export default function DashboardPage() {
                 },
                 {
                   title: 'Total Minutes',
-                  value: mockStats.totalMinutes,
+                  value: stats.totalMinutes,
                   icon: Clock,
                   color: 'text-green-600',
                   bgColor: 'bg-green-100 dark:bg-green-900/30',
@@ -282,7 +279,7 @@ export default function DashboardPage() {
                 },
                 {
                   title: 'Average Score',
-                  value: mockStats.averageScore,
+                  value: stats.averageScore,
                   icon: Target,
                   color: 'text-purple-600',
                   bgColor: 'bg-purple-100 dark:bg-purple-900/30',
@@ -290,7 +287,7 @@ export default function DashboardPage() {
                 },
                 {
                   title: 'Improvement',
-                  value: mockStats.improvementRate,
+                  value: Math.round(stats.improvementRate),
                   icon: TrendingUp,
                   color: 'text-orange-600',
                   bgColor: 'bg-orange-100 dark:bg-orange-900/30',
@@ -338,7 +335,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-4">
-                {mockRecentAnalyses.map((analysis, index) => (
+                {recentAnalyses.map((analysis, index) => (
                   <motion.div
                     key={analysis.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -385,7 +382,7 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {mockRecentAnalyses.length === 0 && (
+              {recentAnalyses.length === 0 && (
                 <div className="text-center py-12">
                   <Mic className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">

@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Create the database URL with proper path handling
 database_url = settings.DATABASE_URL
 
+# Configure engine based on database type
 if database_url.startswith("sqlite:"):
     # Handle both relative and absolute SQLite paths
     if database_url.startswith("sqlite:///./"):
@@ -32,15 +33,38 @@ if database_url.startswith("sqlite:"):
         # Relative path without ./
         database_url = database_url.replace("sqlite:", "sqlite+aiosqlite:")
         logger.info(f"Using SQLite database: {database_url}")
-
-# Configure engine with connection pooling and optimized settings
-# Note: For SQLite with async, we use StaticPool
-engine = create_async_engine(
-    database_url,
-    echo=False,  # Disable SQL logging in production
-    poolclass=StaticPool,  # Use StaticPool for SQLite async
-    connect_args={"check_same_thread": False}  # Needed for SQLite
-)
+    
+    # SQLite-specific engine configuration
+    engine = create_async_engine(
+        database_url,
+        echo=False,  # Disable SQL logging in production
+        poolclass=StaticPool,  # Use StaticPool for SQLite async
+        connect_args={"check_same_thread": False}  # Needed for SQLite
+    )
+elif database_url.startswith("postgresql:"):
+    # PostgreSQL configuration
+    # Convert postgresql:// to postgresql+asyncpg:// for async support
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+    
+    logger.info(f"Using PostgreSQL database: {database_url.split('@')[1] if '@' in database_url else 'hidden'}")
+    
+    # PostgreSQL-specific engine configuration
+    engine = create_async_engine(
+        database_url,
+        echo=False,  # Disable SQL logging in production
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,  # Verify connections before use
+        pool_recycle=300,    # Recycle connections every 5 minutes
+    )
+else:
+    # Default configuration for other databases
+    logger.info(f"Using database: {database_url}")
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+    )
 
 # Create async session factory
 AsyncSessionLocal = sessionmaker(

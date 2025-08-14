@@ -1,7 +1,7 @@
 # backend/api/v1/router.py
 
 from fastapi import APIRouter
-from .endpoints import health, auth, analysis, users, speeches
+from .endpoints import health, auth, analysis, users, speeches, transcription
 from .endpoints.analysis_alias import router as analysis_alias_router
 
 api_router = APIRouter()
@@ -38,6 +38,13 @@ api_router.include_router(
     speeches.router,
     prefix="/speeches",
     tags=["Speeches"]
+)
+
+# Transcription endpoints
+api_router.include_router(
+    transcription.router,
+    prefix="/transcription",
+    tags=["Transcription"]
 )
 
 # Analysis alias endpoints (DISABLED - causing duplicate routes)

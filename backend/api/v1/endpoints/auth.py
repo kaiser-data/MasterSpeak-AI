@@ -123,6 +123,22 @@ async def get_current_user(
     """
     return user
 
+# Session endpoint compatibility (redirects to /me)
+@router.get("/session", response_model=UserRead, summary="Get Session (Compatibility)")
+@create_rate_limit_decorator(RateLimits.API_READ)
+async def get_session_compat(
+    request: Request,
+    user: User = Depends(fastapi_users.current_user(active=True))
+):
+    """
+    Compatibility endpoint for session requests - redirects to /me
+    This handles legacy NextAuth-style session requests
+    
+    Returns:
+        UserRead: Current user's profile information
+    """
+    return user
+
 # Include FastAPIUsers authentication routes with rate limiting applied at router level
 auth_jwt_router = fastapi_users.get_auth_router(auth_backend)
 register_router = fastapi_users.get_register_router(UserRead, UserCreate)

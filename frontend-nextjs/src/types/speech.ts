@@ -3,6 +3,7 @@ export interface Speech {
   user_id: string
   title: string
   content: string
+  transcription?: string  // For audio files
   source_type: 'TEXT' | 'AUDIO' | 'VIDEO'
   created_at: string
   updated_at?: string
@@ -22,13 +23,22 @@ export interface SpeechAnalysis {
 
 export interface AnalysisResponse {
   speech_id: string
-  analysis_id: string
-  word_count: number
-  clarity_score: number
-  structure_score: number
-  filler_words_rating: number
-  feedback: string
-  created_at: string
+  analysis_id?: string
+  word_count?: number
+  clarity_score?: number
+  structure_score?: number
+  filler_words_rating?: number
+  feedback?: string
+  created_at?: string
+  transcription?: string  // For audio analysis results
+  source_type?: string
+  analysis?: {
+    clarity_score: number
+    structure_score: number
+    filler_word_count: number
+    feedback: string
+  }
+  success?: boolean
 }
 
 export interface SpeechUpload {

@@ -15,6 +15,8 @@ interface AnalysisResultsProps {
   result: {
     success: boolean
     speech_id: string
+    transcription?: string
+    source_type?: string
     analysis: {
       clarity_score: number
       structure_score: number  
@@ -129,7 +131,10 @@ export default function AnalysisResults({ result, onBack, onNewAnalysis }: Analy
               Analysis Complete!
             </h2>
             <p className="text-green-600 dark:text-green-300">
-              Your speech has been analyzed. Here are your results:
+              {result.source_type === 'audio' 
+                ? 'Your audio has been transcribed and analyzed. Here are your results:'
+                : 'Your speech has been analyzed. Here are your results:'
+              }
             </p>
           </div>
         </div>
@@ -238,15 +243,37 @@ export default function AnalysisResults({ result, onBack, onNewAnalysis }: Analy
         </div>
       </motion.div>
 
+      {/* Transcription (if available) */}
+      {result.transcription && result.source_type === 'audio' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="card"
+        >
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+            🎤 Transcription
+          </h3>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+            <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+              {result.transcription}
+            </p>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+            Generated using OpenAI Whisper
+          </p>
+        </motion.div>
+      )}
+
       {/* Feedback */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.6 }}
         className="card"
       >
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-          AI Feedback
+          🤖 AI Feedback
         </h3>
         <div className="prose prose-slate dark:prose-invert max-w-none">
           <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
@@ -259,7 +286,7 @@ export default function AnalysisResults({ result, onBack, onNewAnalysis }: Analy
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.7 }}
         className="card bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20"
       >
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">

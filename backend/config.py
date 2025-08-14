@@ -28,8 +28,11 @@ class Settings(BaseSettings):
     # Application environment
     ENV: str = "production"  # Default to production for Railway deployment
     
-    # Database configuration - use /tmp for Railway deployment
-    DATABASE_URL: str = "sqlite:////tmp/masterspeak.db" if (os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT")) else "sqlite:///./data/masterspeak.db"
+    # Database configuration with Railway PostgreSQL support
+    DATABASE_URL: str = (
+        os.getenv("DATABASE_URL") or  # Railway PostgreSQL (persistent)
+        ("sqlite:////tmp/masterspeak.db" if (os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT")) else "sqlite:///./data/masterspeak.db")
+    )
     
     # API Keys
     OPENAI_API_KEY: str

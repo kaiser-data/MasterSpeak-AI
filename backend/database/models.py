@@ -43,6 +43,7 @@ class Speech(SQLModel, table=True):
     title: str
     source_type: SourceType
     content: str
+    transcription: Optional[str] = None  # Store Whisper transcription for audio files
     feedback: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

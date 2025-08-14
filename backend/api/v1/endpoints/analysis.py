@@ -19,6 +19,7 @@ except Exception:
     def get_current_user_optional():
         return None
 from backend.openai_service_backup import analyze_text_with_gpt_simple as analyze_text_with_gpt
+from backend.transcription_service import transcribe_audio_file, is_audio_file
 try:
     from backend.middleware.rate_limiting import limiter, RateLimits, create_rate_limit_decorator
     RATE_LIMITING_AVAILABLE = True
@@ -196,49 +197,119 @@ async def analyze_text(
 @create_rate_limit_decorator(RateLimits.ANALYSIS_UPLOAD)
 async def upload_and_analyze(
     request: Request,
-    file: UploadFile = File(..., description="Text file to upload and analyze"),
+    file: UploadFile = File(..., description="Text or audio file to upload and analyze"),
     user_id: Optional[UUID] = Form(None, description="ID of the user performing the analysis"),
     prompt_type: str = Form("default", description="Type of analysis prompt to use"),
+    title: Optional[str] = Form(None, description="Title for the speech"),
     session: AsyncSession = Depends(get_session)
 ) -> AnalysisResponse:
     """
-    Upload a text file and analyze its content
+    Upload a text or audio file and analyze its content
     
     Args:
-        file: Text file to upload
+        file: Text or audio file to upload (supports TXT, PDF, MP3, WAV, M4A)
         user_id: UUID of the user performing the analysis
         prompt_type: Type of analysis prompt
+        title: Optional title for the speech
         
     Returns:
         AnalysisResponse: Analysis results with scores and feedback
     """
     try:
-        # Verify user exists
-        result = await session.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        # Verify user exists if user_id provided
+        if user_id:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
 
-        # Read file content
-        if not file.content_type or not file.content_type.startswith('text/'):
-            raise HTTPException(status_code=400, detail="File must be a text file")
+        text_content = None
+        transcription = None
+        source_type = SourceType.TEXT
+        
+        # Check if it's an audio file
+        if file.content_type and is_audio_file(file.content_type):
+            logger.info(f"Processing audio file: {file.filename}")
+            # Transcribe audio file
+            transcription = await transcribe_audio_file(file)
+            text_content = transcription
+            source_type = SourceType.AUDIO
             
-        content = await file.read()
-        try:
-            text = content.decode('utf-8')
-        except UnicodeDecodeError:
-            raise HTTPException(status_code=400, detail="File must contain valid UTF-8 text")
+        else:
+            # Handle text files
+            if not file.content_type or not file.content_type.startswith('text/'):
+                raise HTTPException(
+                    status_code=400, 
+                    detail="File must be a text file or audio file (TXT, MP3, WAV, M4A)"
+                )
+                
+            content = await file.read()
+            try:
+                text_content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                raise HTTPException(status_code=400, detail="File must contain valid UTF-8 text")
 
-        if len(text.strip()) == 0:
-            raise HTTPException(status_code=400, detail="File cannot be empty")
+        if not text_content or len(text_content.strip()) == 0:
+            raise HTTPException(status_code=400, detail="File cannot be empty or contain no transcribable content")
 
-        # Use the same analysis logic as text endpoint
-        return await analyze_text(request, text, user_id, prompt_type, session)
+        # Calculate basic metrics
+        word_count = len(text_content.split())
+        
+        # Create and save Speech record
+        speech_title = title or f"Analysis of {file.filename}"
+        speech = Speech(
+            user_id=user_id,
+            title=speech_title,
+            content=text_content,
+            transcription=transcription,  # Store transcription if it's from audio
+            source_type=source_type,
+            created_at=datetime.utcnow()
+        )
+        session.add(speech)
+        await session.commit()
+        await session.refresh(speech)
+
+        # Get analysis from OpenAI
+        analysis_result = await analyze_text_with_gpt(text_content, prompt_type)
+
+        # Create and save Analysis record
+        analysis = SpeechAnalysis(
+            speech_id=speech.id,
+            word_count=word_count,
+            clarity_score=analysis_result.clarity_score,
+            structure_score=analysis_result.structure_score,
+            filler_word_count=analysis_result.filler_words_rating,
+            prompt=prompt_type,
+            feedback=analysis_result.feedback or "",
+            created_at=datetime.utcnow()
+        )
+        session.add(analysis)
+        await session.commit()
+        await session.refresh(analysis)
+
+        # Create response in the format the frontend expects
+        response_data = {
+            "success": True,
+            "speech_id": str(speech.id),
+            "transcription": transcription,  # Include transcription in response
+            "source_type": source_type.value,
+            "analysis": {
+                "clarity_score": analysis_result.clarity_score,
+                "structure_score": analysis_result.structure_score,
+                "filler_word_count": analysis_result.filler_words_rating,
+                "feedback": analysis_result.feedback or ""
+            }
+        }
+        
+        logger.info(f"Analysis completed successfully: speech_id={speech.id}, source_type={source_type}")
+        return JSONResponse(content=response_data)
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in upload_and_analyze: {str(e)}")
+        if session.in_transaction():
+            await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/results/{speech_id}", response_model=AnalysisResponse, summary="Get Analysis Results")
