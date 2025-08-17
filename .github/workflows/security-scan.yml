@@ -1,0 +1,390 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly security scans on Sundays at 02:00 UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+env:
+  # Security scanning configuration
+  SCANNER_VERSION: latest
+  
+jobs:
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        component: [backend, frontend, e2e]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for frontend and e2e)
+        if: matrix.component != 'backend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend-nextjs/package-lock.json
+            e2e/package-lock.json
+
+      - name: Set up Python (for backend)
+        if: matrix.component == 'backend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies and scan (Backend)
+        if: matrix.component == 'backend'
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety bandit semgrep
+          pip install -r requirements.txt
+          
+          # Scan for known vulnerabilities in dependencies
+          echo "🔍 Scanning Python dependencies for vulnerabilities..."
+          safety check --json --output safety-report.json || true
+          
+          # Static analysis security scan
+          echo "🔍 Running Bandit security analysis..."
+          bandit -r . -f json -o bandit-report.json || true
+          
+          # Semgrep security scanning
+          echo "🔍 Running Semgrep security rules..."
+          semgrep --config=auto --json --output=semgrep-report.json . || true
+
+      - name: Install dependencies and scan (Frontend)
+        if: matrix.component == 'frontend'
+        working-directory: ./frontend-nextjs
+        run: |
+          npm ci
+          
+          # Audit npm dependencies
+          echo "🔍 Auditing npm dependencies..."
+          npm audit --audit-level=moderate --json > npm-audit-report.json || true
+          
+          # Install and run ESLint security plugin
+          npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-security-report.json || true
+
+      - name: Install dependencies and scan (E2E)
+        if: matrix.component == 'e2e'
+        working-directory: ./e2e
+        run: |
+          npm ci
+          
+          # Audit npm dependencies for E2E tests
+          echo "🔍 Auditing E2E test dependencies..."
+          npm audit --audit-level=moderate --json > npm-audit-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports-${{ matrix.component }}
+          path: |
+            backend/safety-report.json
+            backend/bandit-report.json
+            backend/semgrep-report.json
+            frontend-nextjs/npm-audit-report.json
+            frontend-nextjs/eslint-security-report.json
+            e2e/npm-audit-report.json
+          retention-days: 30
+
+  # Container image scanning
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        image: [backend, frontend]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          if [ "${{ matrix.image }}" = "backend" ]; then
+            docker build -f backend/Dockerfile -t masterspeak-${{ matrix.image }}:scan .
+          else
+            docker build -f Dockerfile.frontend -t masterspeak-${{ matrix.image }}:scan .
+          fi
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'masterspeak-${{ matrix.image }}:scan'
+          format: 'sarif'
+          output: 'trivy-${{ matrix.image }}-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-${{ matrix.image }}-results.sarif'
+
+      - name: Run Trivy for JSON report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'masterspeak-${{ matrix.image }}:scan'
+          format: 'json'
+          output: 'trivy-${{ matrix.image }}-report.json'
+
+      - name: Upload container scan reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-scan-${{ matrix.image }}
+          path: |
+            trivy-${{ matrix.image }}-results.sarif
+            trivy-${{ matrix.image }}-report.json
+          retention-days: 30
+
+  # Code quality and security analysis
+  code-analysis:
+    name: Code Quality & Security Analysis
+    runs-on: ubuntu-latest
+    
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, python
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript,python"
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/javascript
+            p/python
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  # Secrets scanning
+  secrets-scan:
+    name: Secrets Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Optional for enhanced features
+
+  # Infrastructure security scanning
+  infrastructure-scan:
+    name: Infrastructure Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov on Docker and Infrastructure files
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,docker_compose,github_actions
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload Checkov scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+
+      - name: Dockerfile security scan
+        run: |
+          # Install hadolint for Dockerfile linting
+          wget -O hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x hadolint
+          
+          # Scan Dockerfiles
+          echo "🔍 Scanning Dockerfiles for security issues..."
+          ./hadolint backend/Dockerfile --format json > hadolint-backend.json || true
+          ./hadolint Dockerfile.frontend --format json > hadolint-frontend.json || true
+          ./hadolint e2e/Dockerfile --format json > hadolint-e2e.json || true
+
+      - name: Upload infrastructure scan reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: infrastructure-scan-reports
+          path: |
+            checkov-results.sarif
+            hadolint-*.json
+          retention-days: 30
+
+  # Security summary and reporting
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, container-scan, code-analysis, secrets-scan, infrastructure-scan]
+    if: always()
+    
+    steps:
+      - name: Download all security reports
+        uses: actions/download-artifact@v4
+        with:
+          path: security-reports
+
+      - name: Generate security summary
+        run: |
+          echo "# 🔒 Security Scan Summary" > security-summary.md
+          echo "" >> security-summary.md
+          echo "## Scan Results" >> security-summary.md
+          echo "" >> security-summary.md
+          
+          # Check each job status
+          echo "| Component | Status | Notes |" >> security-summary.md
+          echo "|-----------|--------|-------|" >> security-summary.md
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result }} | Vulnerabilities in dependencies |" >> security-summary.md
+          echo "| Container Scan | ${{ needs.container-scan.result }} | Docker image vulnerabilities |" >> security-summary.md
+          echo "| Code Analysis | ${{ needs.code-analysis.result }} | Static code analysis |" >> security-summary.md
+          echo "| Secrets Scan | ${{ needs.secrets-scan.result }} | Exposed secrets detection |" >> security-summary.md
+          echo "| Infrastructure | ${{ needs.infrastructure-scan.result }} | Infrastructure security |" >> security-summary.md
+          echo "" >> security-summary.md
+          
+          # Add recommendations
+          echo "## Security Recommendations" >> security-summary.md
+          echo "- 🔄 Regularly update dependencies to patch known vulnerabilities" >> security-summary.md
+          echo "- 🛡️ Use minimal base images and multi-stage builds for containers" >> security-summary.md
+          echo "- 🔍 Review and address any high/critical severity findings" >> security-summary.md
+          echo "- 🔑 Ensure no secrets are committed to the repository" >> security-summary.md
+          echo "- 📋 Follow security best practices for Docker and infrastructure" >> security-summary.md
+          echo "" >> security-summary.md
+          echo "Generated on: $(date)" >> security-summary.md
+
+      - name: Upload security summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-summary
+          path: security-summary.md
+          retention-days: 90
+
+      - name: Comment PR with security summary (if PR)
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('security-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  # Security compliance check
+  compliance-check:
+    name: Security Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Security compliance checklist
+        run: |
+          echo "🔍 Running security compliance checks..."
+          
+          # Check for security files
+          echo "## Security Files Check" > compliance-report.md
+          
+          if [ -f "SECURITY.md" ]; then
+            echo "✅ SECURITY.md found" >> compliance-report.md
+          else
+            echo "❌ SECURITY.md missing" >> compliance-report.md
+          fi
+          
+          if [ -f ".github/dependabot.yml" ]; then
+            echo "✅ Dependabot configuration found" >> compliance-report.md
+          else
+            echo "❌ Dependabot configuration missing" >> compliance-report.md
+          fi
+          
+          # Check for secrets in environment files
+          echo "## Environment Security Check" >> compliance-report.md
+          
+          if grep -r "password\|secret\|key" .env* 2>/dev/null | grep -v "your-" | grep -v "test-" | grep -v "#"; then
+            echo "⚠️ Potential secrets found in environment files" >> compliance-report.md
+          else
+            echo "✅ No obvious secrets in environment files" >> compliance-report.md
+          fi
+          
+          # Check Docker security
+          echo "## Docker Security Check" >> compliance-report.md
+          
+          if grep -r "USER " */Dockerfile; then
+            echo "✅ Non-root user configured in Dockerfiles" >> compliance-report.md
+          else
+            echo "⚠️ Consider using non-root users in Dockerfiles" >> compliance-report.md
+          fi
+
+      - name: Upload compliance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-report
+          path: compliance-report.md
+          retention-days: 30
+
+# Prevent concurrent security scans
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: false

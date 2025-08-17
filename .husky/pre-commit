@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Frontend checks
+echo "📱 Frontend: Linting..."
+pnpm lint --max-warnings 0 || {
+  echo "❌ Linting failed"
+  exit 1
+}
+
+echo "📱 Frontend: Type checking..."
+pnpm type-check || {
+  echo "❌ Type checking failed"
+  exit 1
+}
+
+echo "📱 Frontend: Testing changed files..."
+pnpm test:changed || {
+  echo "❌ Frontend tests failed"
+  exit 1
+}
+
+# Backend checks
+echo "🐍 Backend: Linting..."
+cd backend && python -m black --check . && python -m isort --check-only . || {
+  echo "❌ Backend linting failed"
+  cd ..
+  exit 1
+}
+
+echo "🐍 Backend: Type checking..."
+python -m mypy backend/ --ignore-missing-imports || {
+  echo "❌ Backend type checking failed"
+  cd ..
+  exit 1
+}
+
+echo "🐍 Backend: Testing..."
+python -m pytest test/unit/ -q || {
+  echo "❌ Backend tests failed"
+  cd ..
+  exit 1
+}
+
+cd ..
+
+echo "✅ All pre-commit checks passed!"

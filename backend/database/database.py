@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Create the database URL with proper path handling
 database_url = settings.DATABASE_URL
+logger.info(f"Initial DATABASE_URL from settings: {database_url}")
 
 # Configure engine based on database type
 if database_url.startswith("sqlite:"):
@@ -28,6 +29,7 @@ if database_url.startswith("sqlite:"):
         logger.info(f"Using SQLite database at: {db_path.absolute()}")
     elif database_url.startswith("sqlite:///"):
         # Already absolute path
+        logger.info(f"Using absolute SQLite path: {database_url}")
         database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
     else:
         # Relative path without ./

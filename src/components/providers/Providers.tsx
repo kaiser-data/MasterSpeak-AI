@@ -4,7 +4,14 @@ import { ThemeProvider } from 'next-themes'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider } from 'next-auth/react'
 import { Toaster } from 'react-hot-toast'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+// Initialize MSW if in development with transcription UI flag
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_TRANSCRIPTION_UI === '1') {
+  import('@/mocks/browser').then(({ initMocks }) => {
+    initMocks()
+  })
+}
 
 interface ProvidersProps {
   children: React.ReactNode

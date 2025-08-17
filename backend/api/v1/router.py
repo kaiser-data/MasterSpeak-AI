@@ -1,8 +1,9 @@
 # backend/api/v1/router.py
 
 from fastapi import APIRouter
-from .endpoints import health, auth, analysis, users, speeches, transcription
+from .endpoints import health, auth, analysis, users, speeches, transcription, export, share
 from .endpoints.analysis_alias import router as analysis_alias_router
+from .routes import analyses
 
 api_router = APIRouter()
 
@@ -45,6 +46,27 @@ api_router.include_router(
     transcription.router,
     prefix="/transcription",
     tags=["Transcription"]
+)
+
+# Analyses list endpoints (Agent C)
+api_router.include_router(
+    analyses.router,
+    prefix="/analyses",
+    tags=["Analyses"]
+)
+
+# Export endpoints (Agent D)
+api_router.include_router(
+    export.router,
+    prefix="/analyses",
+    tags=["Export"]
+)
+
+# Share endpoints (Agent D)
+api_router.include_router(
+    share.router,
+    prefix="/share",
+    tags=["Share"]
 )
 
 # Analysis alias endpoints (DISABLED - causing duplicate routes)
