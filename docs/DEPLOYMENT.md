@@ -37,24 +37,59 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-## 🚂 Railway Backend Deployment
+## 🚀 Universal Backend Deployment
 
-### Production Environment
-Production automatically deploys from the `main` branch.
+### Platform Support
+MasterSpeak AI supports deployment to multiple platforms:
+- **Railway** (Current primary)
+- **Render** (Alternative PaaS)
+- **Heroku** (Classic PaaS)
+- **Fly.io** (Modern edge platform)
+- **Docker** (Containerized local/cloud)
+- **Kubernetes** (Enterprise orchestration)
 
-### Staging Environment Setup
+### Quick Deployment (Any Platform)
 
 #### Automated Setup (Recommended)
 ```bash
-# Run the setup script
-./scripts/setup-staging.sh
+# Interactive deployment wizard
+./scripts/deploy.sh --interactive
+
+# Or direct deployment
+./scripts/deploy.sh [platform] [environment]
+
+# Examples:
+./scripts/deploy.sh railway staging
+./scripts/deploy.sh render production
+./scripts/deploy.sh docker local
 ```
 
-This script will:
-1. Create a staging environment on Railway
-2. Configure environment variables
-3. Deploy the release-candidate branch
-4. Provide the staging URL
+### Platform-Specific Setup
+
+#### Railway (Current)
+```bash
+# Railway-specific staging setup
+./scripts/setup-staging.sh
+
+# Or use universal script
+./scripts/deploy.sh railway staging
+```
+
+#### Render.com
+```bash
+# Deploy to Render
+./scripts/deploy.sh render staging
+
+# Creates render.yaml configuration automatically
+```
+
+#### Heroku
+```bash
+# Deploy to Heroku
+./scripts/deploy.sh heroku staging
+
+# Handles app creation and buildpack configuration
+```
 
 #### Manual Setup
 ```bash

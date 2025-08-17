@@ -1,0 +1,63 @@
+# Render.com Deployment Configuration
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  # Backend Service
+  - type: web
+    name: masterspeak-backend-{{ENVIRONMENT}}
+    runtime: python
+    repo: https://github.com/kaiser-data/MasterSpeak-AI
+    branch: {{BRANCH}}
+    buildCommand: |
+      cd backend
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: {{ENVIRONMENT}}
+      - key: DATABASE_URL
+        fromDatabase:
+          name: masterspeak-db-{{ENVIRONMENT}}
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in dashboard
+      - key: ALLOWED_ORIGINS
+        value: {{FRONTEND_URL}}
+      - key: REDIS_URL
+        fromRedis:
+          name: masterspeak-redis-{{ENVIRONMENT}}
+          property: connectionString
+
+  # Frontend Service (if not using Vercel)
+  - type: static
+    name: masterspeak-frontend-{{ENVIRONMENT}}
+    buildCommand: |
+      npm install
+      npm run build
+    staticPublishPath: ./out
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://masterspeak-backend-{{ENVIRONMENT}}.onrender.com
+
+# Databases
+databases:
+  - name: masterspeak-db-{{ENVIRONMENT}}
+    databaseName: masterspeak_{{ENVIRONMENT}}
+    user: masterspeak
+    plan: free  # or 'starter' for production
+
+# Redis
+redis:
+  - name: masterspeak-redis-{{ENVIRONMENT}}
+    plan: free  # or 'starter' for production
+    maxmemoryPolicy: allkeys-lru

@@ -1,28 +1,61 @@
 # 📜 MasterSpeak AI - Scripts Directory
 
-This directory contains utility scripts for managing the MasterSpeak AI application.
+This directory contains utility scripts for managing the MasterSpeak AI application across multiple deployment platforms.
 
 ## Available Scripts
 
-### 🚀 `setup-staging.sh`
-Sets up a staging environment on Railway for testing release-candidate branches.
+### 🚀 `deploy.sh` (Universal Deployment)
+**Platform-agnostic deployment script supporting multiple providers**
+
+**Supported Platforms:**
+- Railway, Render, Heroku, Fly.io, Docker, Kubernetes, Vercel
+
+**Usage:**
+```bash
+./scripts/deploy.sh [platform] [environment] [options]
+
+# Examples:
+./scripts/deploy.sh railway staging
+./scripts/deploy.sh render production
+./scripts/deploy.sh docker local
+./scripts/deploy.sh --interactive    # Interactive wizard
+```
+
+**Features:**
+- Works with existing environments
+- Flexible platform switching
+- Automatic environment detection
+- Pre-deployment testing
+- Health check validation
+- Dry-run capability
+
+### 🔄 `platform-migrate.sh` (Platform Migration)
+**Migrate between deployment platforms while preserving data and configuration**
+
+**Usage:**
+```bash
+./scripts/platform-migrate.sh [source] [target] [environment]
+
+# Examples:
+./scripts/platform-migrate.sh railway render staging
+./scripts/platform-migrate.sh heroku fly production
+./scripts/platform-migrate.sh --detect    # Auto-detect current platform
+```
+
+**Features:**
+- Environment variable backup and migration
+- Database backup and restore
+- Platform-specific configuration generation
+- DNS/domain migration guidance
+- Rollback capability
+
+### 🚂 `setup-staging.sh` (Railway-Specific)
+**Legacy Railway-specific staging setup (use deploy.sh for new deployments)**
 
 **Usage:**
 ```bash
 ./scripts/setup-staging.sh
 ```
-
-**What it does:**
-- Creates a staging environment on Railway
-- Configures environment variables
-- Deploys the release-candidate branch
-- Sets up automatic deployments
-- Tests the deployment
-
-**Prerequisites:**
-- Railway CLI installed (`npm install -g @railway/cli`)
-- Railway account and project created
-- Git repository with release-candidate branch
 
 ### 🧪 `run-local.sh` (E2E Tests)
 Runs E2E tests locally (located in `e2e/scripts/`).
