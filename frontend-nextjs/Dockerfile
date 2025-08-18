@@ -7,7 +7,8 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+# Use npm install if package-lock.json doesn't exist, otherwise use npm ci
+RUN if [ -f package-lock.json ]; then npm ci --only=production; else npm install --only=production; fi
 
 # Rebuild the source code only when needed
 FROM base AS builder

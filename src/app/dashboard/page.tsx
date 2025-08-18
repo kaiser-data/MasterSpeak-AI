@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { 
   Mic, 
@@ -19,6 +20,13 @@ import {
 import SpeechAnalysisUpload from '@/components/ui/SpeechAnalysisUpload'
 import AnalysisResults from '@/components/ui/AnalysisResults'
 import { authAPI, speechesAPI, userAPI } from '@/lib/api'
+import { 
+  getRecentAnalyses, 
+  Analysis, 
+  formatRelativeTime,
+  calculateOverallScore,
+  getScoreColorClass
+} from '@/services/analyses'
 
 interface User {
   id: string
@@ -41,9 +49,11 @@ interface RecentAnalysis {
   clarity_score?: number
   structure_score?: number
   duration?: string
+  overall_score?: number
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [showUpload, setShowUpload] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<any>(null)
@@ -51,6 +61,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ totalSpeeches: 0, totalMinutes: 0, averageScore: 0, improvementRate: 0 })
   const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([])
   const [loading, setLoading] = useState(true)
+  const [analysesData, setAnalysesData] = useState<Analysis[]>([])
 
   // Fetch user data and dashboard stats
   useEffect(() => {
@@ -58,14 +69,19 @@ export default function DashboardPage() {
       try {
         setLoading(true)
         
-        // Get current user
+        // Get current user (using existing auth)
         const currentUser = await authAPI.getCurrentUser()
         setUser(currentUser)
         
-        // Get user speeches
-        const speeches = await speechesAPI.getSpeeches(0, 100, currentUser.id)
+        // Get recent analyses using new service
+        const [speeches, analyses] = await Promise.all([
+          speechesAPI.getSpeeches(0, 100, currentUser.id),
+          getRecentAnalyses(5).catch(() => [])
+        ])
         
-        // Calculate stats from speeches
+        setAnalysesData(analyses)
+        
+        // Calculate stats from speeches and analyses
         const totalSpeeches = speeches.length
         const totalMinutes = speeches.reduce((acc: number, speech: any) => {
           // Estimate reading time: ~180 words per minute
@@ -73,35 +89,34 @@ export default function DashboardPage() {
           return acc + Math.ceil(wordCount / 180)
         }, 0)
         
-        // Get analyses for average score
-        const analysesPromises = speeches.slice(0, 10).map((speech: any) => 
-          speechesAPI.getSpeechAnalysis(speech.id).catch(() => null)
-        )
-        const analyses = (await Promise.all(analysesPromises)).filter(Boolean)
+        // Calculate average score from new analysis metrics
+        const averageScore = analyses.length > 0 
+          ? analyses.reduce((acc, analysis) => acc + calculateOverallScore(analysis.metrics), 0) / analyses.length
+          : 0
         
-        const avgClarity = analyses.reduce((acc: number, analysis: any) => 
-          acc + (analysis?.clarity_score || 0), 0) / Math.max(analyses.length, 1)
-        const avgStructure = analyses.reduce((acc: number, analysis: any) => 
-          acc + (analysis?.structure_score || 0), 0) / Math.max(analyses.length, 1)
-        const averageScore = (avgClarity + avgStructure) / 2
+        // Calculate improvement trend (compare first and last analyses)
+        const improvementRate = analyses.length > 1 
+          ? ((calculateOverallScore(analyses[0].metrics) - calculateOverallScore(analyses[analyses.length - 1].metrics)) / calculateOverallScore(analyses[analyses.length - 1].metrics)) * 100
+          : 0
         
         setStats({
           totalSpeeches,
           totalMinutes,
           averageScore: Number(averageScore.toFixed(1)),
-          improvementRate: analyses.length > 1 ? Math.random() * 20 : 0 // Placeholder calculation
+          improvementRate: Number(improvementRate.toFixed(1))
         })
         
-        // Format recent analyses
-        const recentWithAnalyses = speeches.slice(0, 3).map((speech: any) => {
-          const analysis = analyses.find((a: any) => a?.speech_id === speech.id)
+        // Format recent analyses for display
+        const recentWithAnalyses = analyses.slice(0, 3).map((analysis: Analysis) => {
+          const speech = speeches.find((s: any) => s.id === analysis.speech_id)
           return {
-            id: speech.id,
-            title: speech.title,
-            date: new Date(speech.created_at).toLocaleDateString(),
-            clarity_score: analysis?.clarity_score,
-            structure_score: analysis?.structure_score,
-            duration: speech.content ? `${Math.ceil(speech.content.split(' ').length / 180)}:00` : '0:00'
+            id: analysis.analysis_id,
+            title: speech?.title || 'Untitled Speech',
+            date: formatRelativeTime(analysis.created_at),
+            clarity_score: analysis.metrics?.clarity_score,
+            structure_score: analysis.metrics?.structure_score,
+            overall_score: calculateOverallScore(analysis.metrics),
+            duration: speech?.content ? `${Math.ceil(speech.content.split(' ').length / 180)}:00` : '0:00'
           }
         })
         
@@ -186,9 +201,9 @@ export default function DashboardPage() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#" className="nav-link-active">Dashboard</a>
-              <a href="#" className="nav-link">Analyses</a>
-              <a href="#" className="nav-link">Progress</a>
+              <a href="/dashboard" className="nav-link-active">Dashboard</a>
+              <a href="/dashboard/analyses" className="nav-link">Analyses</a>
+              <a href="/dashboard/progress" className="nav-link">Progress</a>
               <a href="#" className="nav-link">Settings</a>
             </nav>
 
@@ -329,7 +344,10 @@ export default function DashboardPage() {
                 <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                   Recent Analyses
                 </h2>
-                <button className="btn-outline">
+                <button 
+                  onClick={() => router.push('/dashboard/analyses')}
+                  className="btn-outline"
+                >
                   View All
                 </button>
               </div>
@@ -359,22 +377,32 @@ export default function DashboardPage() {
 
                     <div className="flex items-center space-x-6">
                       <div className="text-center">
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Clarity</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Overall</p>
                         <div className="flex items-center space-x-1">
-                          <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                            {analysis.clarity_score}
+                          <span className={`text-lg font-semibold ${getScoreColorClass(analysis.overall_score || 0)}`}>
+                            {(analysis.overall_score || 0).toFixed(1)}
                           </span>
                           <span className="text-sm text-slate-400">/10</span>
                         </div>
                       </div>
                       
                       <div className="text-center">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Clarity</p>
+                        <div className="flex items-center space-x-1">
+                          <span className={`text-md font-medium ${getScoreColorClass(analysis.clarity_score || 0)}`}>
+                            {analysis.clarity_score || 'N/A'}
+                          </span>
+                          {analysis.clarity_score && <span className="text-sm text-slate-400">/10</span>}
+                        </div>
+                      </div>
+                      
+                      <div className="text-center">
                         <p className="text-sm text-slate-500 dark:text-slate-400">Structure</p>
                         <div className="flex items-center space-x-1">
-                          <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                            {analysis.structure_score}
+                          <span className={`text-md font-medium ${getScoreColorClass(analysis.structure_score || 0)}`}>
+                            {analysis.structure_score || 'N/A'}
                           </span>
-                          <span className="text-sm text-slate-400">/10</span>
+                          {analysis.structure_score && <span className="text-sm text-slate-400">/10</span>}
                         </div>
                       </div>
                     </div>

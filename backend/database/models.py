@@ -7,6 +7,10 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
+# Import new models for database schema
+from backend.models.share_token import ShareToken
+from backend.models.analysis import Analysis
+
 class SourceType(str, Enum):
     """
     Enumeration for source types.

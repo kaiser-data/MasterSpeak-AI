@@ -289,6 +289,13 @@ export const speechesAPI = {
     const response = await api.get(`/speeches/${speechId}/analysis`)
     return response.data
   },
+
+  getRecentAnalyses: async (userId: string, limit = 5) => {
+    const response = await api.get(`/analysis/user/${userId}`, {
+      params: { limit },
+    })
+    return response.data
+  },
 }
 
 export const healthAPI = {
@@ -299,6 +306,63 @@ export const healthAPI = {
 
   getStatus: async () => {
     const response = await api.get('/status')
+    return response.data
+  },
+}
+
+// Export and Share API (Agent D)
+export const exportAPI = {
+  getAnalysisJson: async (analysisId: string, includeTranscript = false) => {
+    const response = await api.get(`/analyses/${analysisId}`, {
+      params: { include_transcript: includeTranscript },
+    })
+    return response.data
+  },
+
+  getAnalysisPdf: async (analysisId: string, includeTranscript = false) => {
+    const response = await api.get(`/analyses/${analysisId}/export`, {
+      params: { include_transcript: includeTranscript },
+      responseType: 'blob', // Important for binary PDF data
+    })
+    
+    // Create blob URL for download
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    
+    // Extract filename from Content-Disposition header if available
+    const contentDisposition = response.headers['content-disposition']
+    let filename = 'analysis.pdf'
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename=([^;]+)/)
+      if (filenameMatch) {
+        filename = filenameMatch[1].replace(/"/g, '')
+      }
+    }
+    
+    return { url, filename, blob }
+  },
+
+  createShareLink: async (analysisId: string, expiresInDays = 7) => {
+    const response = await api.post(`/share/${analysisId}`, {
+      analysis_id: analysisId,
+      expires_in_days: expiresInDays,
+    })
+    return response.data
+  },
+}
+
+export const shareAPI = {
+  getSharedAnalysis: async (token: string) => {
+    // Use a separate client without auth for public access
+    const publicAPI = axios.create({
+      baseURL: '/api/v1',
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    const response = await publicAPI.get(`/share/${token}`)
     return response.data
   },
 }

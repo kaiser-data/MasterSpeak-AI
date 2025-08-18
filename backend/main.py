@@ -224,7 +224,7 @@ logger.info("Running in API-only mode - no static files or templates")
 # Health check endpoint
 @app.get("/health")
 async def health_check(request: Request):
-    """Health check endpoint for monitoring and load balancers"""
+    """Enhanced health check endpoint for monitoring and load balancers"""
     try:
         uptime_seconds = time.time() - getattr(app.state, 'process_start_time', time.time())
         
@@ -234,28 +234,103 @@ async def health_check(request: Request):
             "version": "1.0.0",
             "uptime_seconds": round(uptime_seconds, 2),
             "timestamp": datetime.utcnow().isoformat(),
-            "environment": settings.ENV
+            "environment": settings.ENV,
+            "checks": {}
         }
         
-        # Optional DB check only if flag is set
-        if os.getenv("HEALTHCHECK_DB", "false").lower() == "true":
+        overall_healthy = True
+        
+        # Database connectivity check
+        if os.getenv("HEALTHCHECK_DB", "true").lower() == "true":
             try:
                 from sqlalchemy import text
+                from backend.database.database import AsyncSessionLocal
+                start_time = time.time()
                 async with AsyncSessionLocal() as session:
                     await session.execute(text("SELECT 1"))
-                health_data["db_ok"] = True
-            except Exception:
-                health_data["db_ok"] = False
+                db_response_time = round((time.time() - start_time) * 1000, 2)
+                health_data["checks"]["database"] = {
+                    "status": "healthy",
+                    "response_time_ms": db_response_time
+                }
+            except Exception as e:
+                overall_healthy = False
+                health_data["checks"]["database"] = {
+                    "status": "unhealthy",
+                    "error": str(e)[:100]
+                }
         
-        return JSONResponse(health_data)
+        # Redis connectivity check
+        if os.getenv("HEALTHCHECK_REDIS", "true").lower() == "true":
+            try:
+                import redis.asyncio as redis
+                redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                start_time = time.time()
+                redis_client = redis.from_url(redis_url)
+                await redis_client.ping()
+                await redis_client.close()
+                redis_response_time = round((time.time() - start_time) * 1000, 2)
+                health_data["checks"]["redis"] = {
+                    "status": "healthy",
+                    "response_time_ms": redis_response_time
+                }
+            except Exception as e:
+                overall_healthy = False
+                health_data["checks"]["redis"] = {
+                    "status": "unhealthy", 
+                    "error": str(e)[:100]
+                }
+        
+        # OpenAI API connectivity check (optional, only if key is configured)
+        if os.getenv("HEALTHCHECK_OPENAI", "false").lower() == "true":
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key and openai_key.strip() and not openai_key.startswith("test-"):
+                try:
+                    import openai
+                    start_time = time.time()
+                    client = openai.AsyncOpenAI(api_key=openai_key)
+                    # Just check if we can make an API call (list models is lightweight)
+                    await client.models.list()
+                    openai_response_time = round((time.time() - start_time) * 1000, 2)
+                    health_data["checks"]["openai"] = {
+                        "status": "healthy",
+                        "response_time_ms": openai_response_time
+                    }
+                except Exception as e:
+                    # Don't fail overall health for OpenAI issues (external dependency)
+                    health_data["checks"]["openai"] = {
+                        "status": "degraded",
+                        "error": str(e)[:100]
+                    }
+            else:
+                health_data["checks"]["openai"] = {
+                    "status": "disabled",
+                    "reason": "API key not configured or test key"
+                }
+        
+        # Update overall status based on critical checks
+        if not overall_healthy:
+            health_data["status"] = "degraded"
+        
+        # Add summary
+        healthy_checks = sum(1 for check in health_data["checks"].values() 
+                           if check["status"] == "healthy")
+        total_checks = len(health_data["checks"])
+        health_data["summary"] = f"{healthy_checks}/{total_checks} checks healthy"
+        
+        # Return appropriate HTTP status
+        status_code = 200 if overall_healthy else 503
+        return JSONResponse(health_data, status_code=status_code)
+        
     except Exception as e:
-        # Never crash /health
+        # Never crash /health completely
         logger.error(f"Health check error: {e}")
         return JSONResponse({
-            "status": "ok", 
+            "status": "error", 
+            "service": "MasterSpeak AI",
             "error": "health_check_failed",
             "timestamp": datetime.utcnow().isoformat()
-        })
+        }, status_code=500)
 
 # API status endpoint
 @app.get("/api/status")

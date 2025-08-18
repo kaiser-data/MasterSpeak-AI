@@ -6,11 +6,13 @@ WORKDIR /app
 ARG CACHE_BUST=2
 ENV CACHE_BUST=$CACHE_BUST
 
+# When Railway builds, it uses backend/ as context
+# So we just need to copy from current directory
 COPY requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
-# Force rebuild - copy backend code
+# Copy all backend code
 COPY . ./backend
 ENV PYTHONPATH=/app
 

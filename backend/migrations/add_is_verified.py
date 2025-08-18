@@ -9,8 +9,13 @@ from pathlib import Path
 async def migrate_add_is_verified():
     """Add is_verified column to user table if it doesn't exist"""
     
-    # Get database path
+    # Get database path - check test environment first
+    test_db_path = Path(__file__).parent.parent.parent / "test_data" / "masterspeak_test.db"
     db_path = Path(__file__).parent.parent / "data" / "masterspeak.db"
+    
+    # Use test database if it exists (for E2E testing)
+    if test_db_path.exists():
+        db_path = test_db_path
     
     if not db_path.exists():
         print(f"Database not found at {db_path}")

@@ -228,6 +228,10 @@ class RateLimits:
     # Health/Status endpoints - configurable
     HEALTH_CHECK = settings.RATE_LIMIT_HEALTH
     
+    # Share endpoints - moderate restriction
+    SHARE_CREATE = "5/minute"
+    SHARE_ACCESS = "60/minute"
+    
     # Default fallback
     DEFAULT = settings.RATE_LIMIT_DEFAULT
 

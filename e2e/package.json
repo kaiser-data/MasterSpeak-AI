@@ -14,7 +14,8 @@
     "install-deps": "playwright install-deps"
   },
   "dependencies": {
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "1.48.2",
+    "@faker-js/faker": "^8.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.8.0"

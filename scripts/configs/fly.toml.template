@@ -1,0 +1,71 @@
+# Fly.io Deployment Configuration
+# Documentation: https://fly.io/docs/reference/configuration/
+
+app = "masterspeak-{{ENVIRONMENT}}"
+primary_region = "{{FLY_REGION:-ord}}"
+kill_signal = "SIGINT"
+kill_timeout = "5s"
+
+[experimental]
+  auto_rollback = true
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[deploy]
+  release_command = "python -m backend.migrations.run"
+
+[env]
+  PORT = "8080"
+  ENV = "{{ENVIRONMENT}}"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = {{MIN_MACHINES:-1}}
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[http_service.checks]]
+  interval = "10s"
+  grace_period = "5s"
+  method = "GET"
+  path = "/health"
+  protocol = "http"
+  restart_limit = 0
+  timeout = "2s"
+
+# Database
+[[services]]
+  protocol = "tcp"
+  internal_port = 5432
+  processes = ["db"]
+
+  [[services.ports]]
+    port = 5432
+
+# Redis
+[[services]]
+  protocol = "tcp"
+  internal_port = 6379
+  processes = ["redis"]
+
+  [[services.ports]]
+    port = 6379
+
+# Volume for database (if using SQLite)
+[[mounts]]
+  source = "masterspeak_data"
+  destination = "/data"
+  processes = ["app"]
+
+# Scaling
+[scaling]
+  min_machines = {{MIN_MACHINES:-1}}
+  max_machines = {{MAX_MACHINES:-3}}

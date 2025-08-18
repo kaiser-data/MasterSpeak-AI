@@ -67,14 +67,16 @@ export const speechAnalysisSchema = z.object({
     .min(10, 'Text must be at least 10 characters')
     .max(10000, 'Text must be less than 10,000 characters')
     .optional(),
-  file: z
-    .instanceof(File)
-    .refine((file) => file.size <= 10 * 1024 * 1024, 'File must be less than 10MB')
-    .refine(
-      (file) => ['text/plain', 'application/pdf', 'audio/mpeg', 'audio/wav'].includes(file.type),
-      'File must be a text, PDF, or audio file'
-    )
-    .optional(),
+  file: typeof window !== 'undefined' 
+    ? z
+        .instanceof(File)
+        .refine((file) => file.size <= 10 * 1024 * 1024, 'File must be less than 10MB')
+        .refine(
+          (file) => ['text/plain', 'application/pdf', 'audio/mpeg', 'audio/wav'].includes(file.type),
+          'File must be a text, PDF, or audio file'
+        )
+        .optional()
+    : z.any().optional(),
   title: z
     .string()
     .min(1, 'Title is required')

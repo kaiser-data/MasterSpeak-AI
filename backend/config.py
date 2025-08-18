@@ -93,6 +93,13 @@ class Settings(BaseSettings):
     MAIL_USE_TLS: bool = True
     MAIL_USE_SSL: bool = False
     
+    # Export and Share Configuration (Agent D)
+    EXPORT_ENABLED: bool = False  # Enable export and share functionality
+    ALLOW_TRANSCRIPT_SHARE: bool = False  # Allow transcripts in shared analyses
+    FRONTEND_URL: str = "http://localhost:3000"  # Frontend URL for share links
+    SHARE_TOKEN_EXPIRY_DAYS: int = 7  # Default share token expiry in days
+    MAX_SHARE_TOKENS_PER_ANALYSIS: int = 5  # Maximum active share tokens per analysis
+    
 
     @property
     def trusted_hosts(self) -> List[str]:

@@ -1,0 +1,11 @@
+backend-1  | 2025-08-14 21:04:48,864 - passlib.handlers.bcrypt - WARNING - [<function setup_logging.<locals>.<lambda> at 0x7f90081953a0>] - (trapped) error reading bcrypt version
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+backend-1  |     version = _bcrypt.__about__.__version__
+backend-1  |               ^^^^^^^^^^^^^^^^^
+backend-1  | AttributeError: module 'bcrypt' has no attribute '__about__'
+backend-1  | INFO:     Started server process [6]
+backend-1  | INFO:     Waiting for application startup.
+backend-1  | Database not found at /app/backend/data/masterspeak.db
+backend-1  | INFO:     Application startup complete.
+backend-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

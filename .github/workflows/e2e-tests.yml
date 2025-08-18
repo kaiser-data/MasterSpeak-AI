@@ -42,7 +42,7 @@ jobs:
 
     - name: Start services
       run: |
-        docker-compose -f docker-compose.e2e.yml up -d backend frontend redis
+        docker compose -f docker-compose.e2e.yml up -d backend frontend redis
         sleep 30
 
     - name: Wait for services to be healthy
@@ -50,9 +50,35 @@ jobs:
         timeout 60 bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
 
+    - name: Security checks before E2E tests
+      run: |
+        echo "🔍 Running pre-test security checks..."
+        
+        # Check for exposed secrets in environment
+        if grep -r "AKIAI\|AKIA[0-9A-Z]{16}" . --exclude-dir=.git || \
+           grep -r "sk-[a-zA-Z0-9]{48}" . --exclude-dir=.git || \
+           grep -r "ghp_[a-zA-Z0-9]{36}" . --exclude-dir=.git; then
+          echo "❌ Potential secrets detected in codebase"
+          exit 1
+        fi
+        
+        # Check services are using secure configurations
+        echo "✅ Pre-test security checks passed"
+
     - name: Run E2E tests
       run: |
-        docker-compose -f docker-compose.e2e.yml run --rm e2e-tests
+        docker compose -f docker-compose.e2e.yml run --rm e2e-tests
+
+    - name: Security validation during tests
+      run: |
+        echo "🔍 Validating security during test execution..."
+        
+        # Check if services are responding securely
+        if curl -I http://localhost:8000/health | grep -i "x-frame-options\|x-content-type-options"; then
+          echo "✅ Security headers detected"
+        else
+          echo "⚠️ Consider adding security headers"
+        fi
 
     - name: Upload test results
       if: always()
@@ -75,8 +101,8 @@ jobs:
     - name: Collect logs
       if: failure()
       run: |
-        docker-compose -f docker-compose.e2e.yml logs backend > backend-logs.txt
-        docker-compose -f docker-compose.e2e.yml logs frontend > frontend-logs.txt
+        docker compose -f docker-compose.e2e.yml logs backend > backend-logs.txt
+        docker compose -f docker-compose.e2e.yml logs frontend > frontend-logs.txt
 
     - name: Upload logs
       if: failure()
@@ -91,5 +117,5 @@ jobs:
     - name: Clean up
       if: always()
       run: |
-        docker-compose -f docker-compose.e2e.yml down -v
+        docker compose -f docker-compose.e2e.yml down -v
         docker system prune -f

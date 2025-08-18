@@ -1,0 +1,253 @@
+# Kubernetes Deployment Configuration
+# Apply with: kubectl apply -f kubernetes.yaml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: masterspeak-{{ENVIRONMENT}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: masterspeak-config
+  namespace: masterspeak-{{ENVIRONMENT}}
+data:
+  ENV: "{{ENVIRONMENT}}"
+  DATABASE_URL: "postgresql://{{DB_USER}}:{{DB_PASSWORD}}@postgres:5432/masterspeak_{{ENVIRONMENT}}"
+  REDIS_URL: "redis://redis:6379/0"
+  ALLOWED_ORIGINS: "{{FRONTEND_URL}}"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: masterspeak-secrets
+  namespace: masterspeak-{{ENVIRONMENT}}
+type: Opaque
+stringData:
+  SECRET_KEY: "{{SECRET_KEY}}"
+  OPENAI_API_KEY: "{{OPENAI_API_KEY}}"
+  DB_PASSWORD: "{{DB_PASSWORD}}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: masterspeak-backend
+  namespace: masterspeak-{{ENVIRONMENT}}
+  labels:
+    app: masterspeak-backend
+spec:
+  replicas: {{REPLICAS:-2}}
+  selector:
+    matchLabels:
+      app: masterspeak-backend
+  template:
+    metadata:
+      labels:
+        app: masterspeak-backend
+    spec:
+      containers:
+      - name: backend
+        image: masterspeak-backend:{{IMAGE_TAG:-latest}}
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENV
+          valueFrom:
+            configMapKeyRef:
+              name: masterspeak-config
+              key: ENV
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: masterspeak-config
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: masterspeak-config
+              key: REDIS_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: masterspeak-secrets
+              key: SECRET_KEY
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: masterspeak-secrets
+              key: OPENAI_API_KEY
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: masterspeak-backend
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  selector:
+    app: masterspeak-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: masterspeak_{{ENVIRONMENT}}
+        - name: POSTGRES_USER
+          value: "{{DB_USER:-masterspeak}}"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: masterspeak-secrets
+              key: DB_PASSWORD
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        command: ["redis-server", "--appendonly", "yes"]
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: masterspeak-{{ENVIRONMENT}}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: masterspeak-ingress
+  namespace: masterspeak-{{ENVIRONMENT}}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - masterspeak-{{ENVIRONMENT}}.{{DOMAIN:-example.com}}
+    secretName: masterspeak-tls
+  rules:
+  - host: masterspeak-{{ENVIRONMENT}}.{{DOMAIN:-example.com}}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: masterspeak-backend
+            port:
+              number: 80
